@@ -75,10 +75,32 @@ jobs:
           retention-days: 30
 
   # ============================================
+  # Windows Online Installer (Inno Setup EXE)
+  # ============================================
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile Installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/Setup_EDTECH_DOC_TEMPLATER_*.exe
+          retention-days: 30
+
+  # ============================================
   # Create GitHub Release (optional, on tags)
   # ============================================
   release:
-    needs: [build-macos, build-windows]
+    needs: [build-macos, build-windows, build-installer]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -94,6 +116,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-exe
+          path: artifacts/
+
+      - name: Download Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
           path: artifacts/
 
       - name: Create Release
