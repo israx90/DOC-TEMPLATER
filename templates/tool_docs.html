@@ -72,16 +72,11 @@
 
             <div class="sidebar-right-content">
 
-                <!-- Carpeta de Salida -->
+                <!-- Descarga Automática (WebApp Mode) -->
                 <div class="settings-group">
-                    <h3><i class="fa-regular fa-folder-open"></i> Carpeta de Salida</h3>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <input type="text" id="outputFolderDisplay" readonly placeholder="./outputs (por defecto)"
-                            class="export-folder-input">
-                        <button id="selectFolderBtn" class="btn-select" style="justify-content:center; width:100%;">
-                            <i class="fa-solid fa-folder-tree"></i> Seleccionar Carpeta...
-                        </button>
-                        <input type="hidden" id="outputFolderValue">
+                    <h3><i class="fa-solid fa-file-zipper"></i> Descarga Automática</h3>
+                    <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+                        Los documentos procesados se descargarán directamente. Si procesas más de un archivo, se empaquetarán en un único archivo <b>.zip</b>.
                     </div>
                 </div>
 
