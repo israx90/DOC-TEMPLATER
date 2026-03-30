@@ -37,12 +37,10 @@ html = html.replace('''<button class="format-btn" data-format="both" title="Word
                             <span>Ambos</span>
                         </button>''', '')
 
-# Remove Plantillas block completely to simplify
-html = re.sub(r'<!-- Templates -->.*?</div>.*?</div>', '', html, flags=re.DOTALL)
-
-# Insert Pyodide in head
+# Insert Pyodide and JSZip in head
 pyodide_script = '<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>'
-html = html.replace('</head>', f'    {pyodide_script}\n</head>')
+jszip_script = '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>'
+html = html.replace('</head>', f'    {jszip_script}\n    {pyodide_script}\n</head>')
 
 # Inline JS
 with open('static/js/main_web.js', 'r', encoding='utf-8') as f:
@@ -51,10 +49,7 @@ with open('static/js/main_web.js', 'r', encoding='utf-8') as f:
 # Replace script tag with inline script
 html = re.sub(r'<script src="static/js/main.js"></script>', f'<script>\n{main_js}\n</script>', html)
 
-# Replace the EDD template code in inline JS (it will error if buttons are missing, but let's be safe)
-html = re.sub(r'if \(exportTemplateBtn\).*?}\);.*?}', '', html, flags=re.DOTALL)
-html = re.sub(r'if \(importTemplateBtn\).*?}', '', html, flags=re.DOTALL)
-html = re.sub(r'if \(templateInput\).*?}\);.*?}', '', html, flags=re.DOTALL)
+# EDD template code is preserved so we can implement it natively.
 
 with open('DOC-WEBAPP.html', 'w', encoding='utf-8') as f:
     f.write(html)

@@ -571,40 +571,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const forceEl = document.getElementById('forceStyles');
                 cfg._force_styles = forceEl ? forceEl.checked : true;
 
-                // Pywebview native save
-                if (window.pywebview && window.pywebview.api && window.pywebview.api.save_template) {
-                    const result = await window.pywebview.api.save_template(JSON.stringify(cfg));
-                    if (result && result.success) {
-                        log(`✓ Plantilla guardada: ${result.path}`, 'success');
-                    } else if (result && result.error) {
-                        throw new Error(result.error);
-                    }
-                    // else cancelled by user
-                } else {
-                    // Dev mode: blob download fallback
-                    const res = await fetch('/save_template', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(cfg)
-                    });
+                if (typeof JSZip === 'undefined') throw new Error('JSZip no disponible');
+                const zip = new JSZip();
 
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => null);
-                        throw new Error(err?.error || `Error ${res.status}`);
-                    }
+                const manifest = { format: 'edd', version: '1.0', app: 'EDTech Doc Templater', created: new Date().toISOString() };
+                zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+                zip.file('config.json', JSON.stringify(cfg, null, 2));
 
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const filename = prompt('Nombre del archivo de plantilla:', 'plantilla') || 'plantilla';
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename.replace(/\.edd$/i, '') + '.edd';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    log('✓ Plantilla .edd guardada.', 'success');
+                const imgFolder = zip.folder('images');
+                if (coverInput && coverInput.files.length > 0) imgFolder.file('cover.' + coverInput.files[0].name.split('.').pop(), coverInput.files[0]);
+                if (headerInput && headerInput.files.length > 0) imgFolder.file('header.' + headerInput.files[0].name.split('.').pop(), headerInput.files[0]);
+                if (footerInput && footerInput.files.length > 0) imgFolder.file('footer.' + footerInput.files[0].name.split('.').pop(), footerInput.files[0]);
+                if (backpageInput && backpageInput.files.length > 0) imgFolder.file('backpage.' + backpageInput.files[0].name.split('.').pop(), backpageInput.files[0]);
+
+                const blob = await zip.generateAsync({type: "blob"});
+                const url = URL.createObjectURL(blob);
+                const filename = prompt('Nombre del archivo de plantilla:', 'plantilla') || 'plantilla';
+                if (!filename) {
+                     URL.revokeObjectURL(url);
+                     return;
                 }
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename.replace(/\.edd$/i, '') + '.edd';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                log('✓ Plantilla .edd guardada.', 'success');
             } catch (e) {
                 log(`Error guardando plantilla: ${e.message}`, 'error');
             } finally {
@@ -632,55 +626,45 @@ document.addEventListener('DOMContentLoaded', () => {
             log('Cargando plantilla .edd…', 'info');
 
             try {
-                const fd = new FormData();
-                fd.append('edd', file);
+                if (typeof JSZip === 'undefined') throw new Error('JSZip no disponible');
+                const zip = await JSZip.loadAsync(file);
 
-                const res = await fetch('/load_template', { method: 'POST', body: fd });
-                const d = await res.json();
-
-                if (!res.ok || d.error) throw new Error(d.error || `Error ${res.status}`);
+                if (!zip.file('config.json')) throw new Error('Archivo config.json no encontrado en el EDD');
+                const configText = await zip.file('config.json').async('string');
+                const d = { config: JSON.parse(configText), images: {} };
 
                 // Restore config fields
                 applyConfig(d.config || {});
 
                 // Restore image thumbnails
-                const imgs = d.images || {};
-                const ts = Date.now();
+                // Trigger input change to load them into file objects
+                async function restoreImage(slot, inputEl) {
+                    const imgFolder = zip.folder('images');
+                    if (!imgFolder) return;
+                    let foundName = null;
+                    imgFolder.forEach((relPath, f) => {
+                        if (relPath.startsWith(slot)) foundName = relPath;
+                    });
+                    if (foundName) {
+                        const fContent = imgFolder.file(foundName);
+                        if (fContent) {
+                            const blob = await fContent.async('blob');
+                            const dt = new DataTransfer();
+                            let ext = foundName.split('.').pop().toLowerCase();
+                            let mime = blob.type || (ext === 'png' ? 'image/png' : 'image/jpeg');
+                            dt.items.add(new File([blob], `${slot}.${ext}`, { type: mime }));
+                            if (inputEl) {
+                                inputEl.files = dt.files;
+                                inputEl.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    }
+                }
 
-                if (imgs.cover) {
-                    coverThumb.style.backgroundImage = `url(${imgs.cover}?t=${ts})`;
-                    coverThumb.classList.add('has-image');
-                    coverRow.classList.add('uploaded');
-                }
-                if (imgs.header) {
-                    const ext = imgs.header.split('.').pop().toLowerCase();
-                    if (['emf', 'wmf'].includes(ext)) {
-                        headerThumb.classList.add('has-image');
-                        headerThumb.style.background = 'var(--primary-light)';
-                        headerThumb.innerHTML = '<i class="fa-solid fa-vector-square" style="font-size:10px;color:var(--primary);line-height:28px;text-align:center;width:100%;display:block"></i>';
-                    } else {
-                        headerThumb.style.backgroundImage = `url(${imgs.header}?t=${ts})`;
-                        headerThumb.classList.add('has-image');
-                    }
-                    headerRow.classList.add('uploaded');
-                }
-                if (imgs.footer) {
-                    const ext = imgs.footer.split('.').pop().toLowerCase();
-                    if (['emf', 'wmf'].includes(ext)) {
-                        footerThumb.classList.add('has-image');
-                        footerThumb.style.background = 'var(--primary-light)';
-                        footerThumb.innerHTML = '<i class="fa-solid fa-vector-square" style="font-size:10px;color:var(--primary);line-height:28px;text-align:center;width:100%;display:block"></i>';
-                    } else {
-                        footerThumb.style.backgroundImage = `url(${imgs.footer}?t=${ts})`;
-                        footerThumb.classList.add('has-image');
-                    }
-                    footerRow.classList.add('uploaded');
-                }
-                if (imgs.backpage) {
-                    backpageThumb.style.backgroundImage = `url(${imgs.backpage}?t=${ts})`;
-                    backpageThumb.classList.add('has-image');
-                    backpageRow.classList.add('uploaded');
-                }
+                await restoreImage('cover', coverInput);
+                await restoreImage('header', headerInput);
+                await restoreImage('footer', footerInput);
+                await restoreImage('backpage', backpageInput);
 
                 log('✓ Plantilla .edd cargada correctamente.', 'success');
             } catch (e) {
@@ -1176,6 +1160,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let success_count = 0;
             let error_count = 0;
             
+            // ZIP instance for multiple files
+            let outputZip = null;
+            if (typeof JSZip !== 'undefined' && selectedFiles.size > 1) {
+                outputZip = new JSZip();
+            }
+            let outFilesCount = 0;
+            
             for (let [name, v] of selectedFiles.entries()) {
                 v.status = 'processing';
                 selectedFiles.set(name, v);
@@ -1212,17 +1203,23 @@ doc.save('/tmp/output.docx')
                     let outBuf = pyodide.FS.readFile('/tmp/output.docx');
                     let blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
                     
-                    let outName = prefix + name.replace('.docx', '') + suffix + '.docx';
+                    let outName = prefix + name.replace(/(\.docx)$/i, '') + suffix + '.docx';
                     
-                    // Trigger download
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = outName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    if (outputZip) {
+                        // Add to zip
+                        outputZip.file(outName, blob);
+                        outFilesCount++;
+                    } else {
+                        // Trigger download immediately
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = outName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
                     
                     v.status = 'done';
                     v.resultDocx = outName;
@@ -1238,6 +1235,23 @@ doc.save('/tmp/output.docx')
                 renderQueue();
             }
             
+            if (outputZip && outFilesCount > 0) {
+                log('Empaquetando documentos en ZIP...', 'info');
+                try {
+                    const zipBlob = await outputZip.generateAsync({type:"blob"});
+                    const url = URL.createObjectURL(zipBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'Documentos_Procesados.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    log('Descarga: Documentos_Procesados.zip iniciada.', 'success');
+                } catch(e) {
+                    log('Error generando ZIP: ' + e.message, 'error');
+                }
+            }
             log('✅ Cola finalizada — ' + success_count + ' archivo(s) procesados correctamente.', 'success');
             if (error_count > 0) log('⚠️ ' + error_count + ' archivo(s) fallaron.', 'error');
             
