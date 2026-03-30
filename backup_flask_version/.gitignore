@@ -5,8 +5,6 @@ build/
 
 # Python
 venv/
-venv_intel/
-__pycache__/
 __pycache__/
 *.pyc
 *.pyo
@@ -25,7 +23,3 @@ outputs/*
 # IDE
 .vscode/
 .idea/
-
-# AI Artifacts
-.agents/
-.gemini/

@@ -1,0 +1,10 @@
+flask
+python-docx
+werkzeug
+docx2pdf
+img2table
+pytesseract
+opencv-contrib-python-headless==4.9.0.80
+Pillow
+requests
+pywebview

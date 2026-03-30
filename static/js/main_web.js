@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateNamePreview() {
         const prefix = filePrefixInput ? filePrefixInput.value : '';
         const suffix = fileSuffixInput ? fileSuffixInput.value : '';
-        const ext = (exportFormat === 'pdf') ? '.pdf' : '.docx';
+        const ext = '.docx';
         const bothSuffix = (exportFormat === 'both') ? ' (.docx + .pdf)' : '';
         const preview = `${prefix}documento${suffix}${ext}${bothSuffix}`;
         if (namePreviewText) namePreviewText.textContent = preview;
@@ -342,15 +342,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsDataURL(file);
 
-        const formData = new FormData();
-        formData.append('coverUtils', file);
-        fetch('/upload_cover', { method: 'POST', body: formData })
-            .then(r => r.json())
+        // Fetch removed for Pyodide (files read locally at process)
+        Promise.resolve({path: 'local'})
             .then(d => {
-                log(`Portada cargada: ${d.path}`, 'success');
+                log(`Portada cargada localmente`, 'success');
                 updateCoverPreview();
             })
-            .catch(() => log('Error subiendo portada.', 'error'));
+            .catch(() => log('Error', 'error'));
     }
 
     function handleBackpageUpload(file) {
@@ -366,12 +364,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsDataURL(file);
 
-        const formData = new FormData();
-        formData.append('backpageUtils', file);
-        fetch('/upload_backpage', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(d => log(`Contraportada cargada: ${d.path}`, 'success'))
-            .catch(() => log('Error subiendo contraportada.', 'error'));
+        // Fetch removed
+        Promise.resolve()
+            .then(() => log(`Contraportada cargada localmente`, 'success'));
     }
 
     function handleHeaderUpload(file) {
@@ -398,12 +393,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         headerRow.classList.add('uploaded');
 
-        const formData = new FormData();
-        formData.append('headerUtils', file);
-        fetch('/upload_header', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(d => log(`Encabezado cargado: ${d.path}`, 'success'))
-            .catch(() => log('Error subiendo encabezado.', 'error'));
+        // Fetch removed
+        Promise.resolve()
+            .then(() => log(`Encabezado cargado localmente`, 'success'));
     }
 
     function handleFooterUpload(file) {
@@ -430,12 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         footerRow.classList.add('uploaded');
 
-        const formData = new FormData();
-        formData.append('footerUtils', file);
-        fetch('/upload_footer', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(d => log(`Pie de página cargado: ${d.path}`, 'success'))
-            .catch(() => log('Error subiendo pie de página.', 'error'));
+        // Fetch removed
+        Promise.resolve()
+            .then(() => log(`Pie de página cargado localmente`, 'success'));
     }
 
     // === DOCUMENTS LOGIC ===
@@ -1132,193 +1121,128 @@ document.addEventListener('DOMContentLoaded', () => {
     if (processBtn) {
         processBtn.addEventListener('click', async () => {
             if (selectedFiles.size === 0) return;
-
             processBtn.disabled = true;
             processBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PROCESANDO...';
+            log('Iniciando entorno WebAssembly (Primera vez puede demorar)...', 'info');
 
+            if (!window.pyodide) {
+                try {
+                    window.pyodide = await loadPyodide();
+                    await window.pyodide.loadPackage("micropip");
+                    const micropip = window.pyodide.pyimport("micropip");
+                    await micropip.install("python-docx");
+                    await micropip.install("lxml");
+                    
+                    // Fetch and evaluate templater_core.py
+                    const core_resp = await fetch('templater_core.py');
+                    const core_code = await core_resp.text();
+                    window.pyodide.runPython(core_code);
+                } catch(e) {
+                    log('Error iniciando Pyodide: ' + e, 'error');
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = '<span>INICIAR PROCESO</span><i class="fa-solid fa-play"></i>';
+                    return;
+                }
+            }
+            
             log('Procesando cola...', 'info');
 
-            const endpoint = '/process';
-
-            const formData = new FormData();
-            selectedFiles.forEach(v => formData.append('docs', v.file));
-
-            // Common optional fields
+            const pyodide = window.pyodide;
+            const prefix = filePrefixInput ? filePrefixInput.value : '';
+            const suffix = fileSuffixInput ? fileSuffixInput.value : '';
             const forceStyles = document.getElementById('forceStyles');
-            const outFolder = document.getElementById('outputFolderValue');
-
-            formData.append('output_folder', outFolder ? outFolder.value : '');
-
-            // Export options
-            formData.append('prefix', filePrefixInput ? filePrefixInput.value : '');
-            formData.append('suffix', fileSuffixInput ? fileSuffixInput.value : '');
-            formData.append('export_format', exportFormat);
-
-            // Docs Specifics
-            formData.append('paper_size', paperSize);
-            formData.append('force_styles', forceStyles ? forceStyles.checked : true);
-            // Config
-            try {
-                formData.append('style_config', JSON.stringify(getAdvancedConfig()));
-            } catch (e) { console.warn("Config not found", e); }
-
-            try {
-                const response = await fetch(endpoint, { method: 'POST', body: formData });
-
-                // Docs Stream Handling
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                let buffer = '';
-                let receivedComplete = false;
-                
-                const debugAppend = (msg) => {
-                    const dl = document.getElementById('debugLog');
-                    if (dl) { dl.textContent += `[STREAM] ${msg}\n`; dl.scrollTop = dl.scrollHeight; }
-                };
-
-                const processLine = (line) => {
-                    if (!line.trim()) return;
-                    try {
-                        const data = JSON.parse(line);
-
-                        // Match Processing File
-                        if (data.msg && data.msg.startsWith('Transformando:')) {
-                            const match = data.msg.match(/Transformando: (.*)\.{3}/);
-                            if (match && selectedFiles.has(match[1])) {
-                                const f = selectedFiles.get(match[1]);
-                                f.status = 'processing';
-                                selectedFiles.set(match[1], f);
-                                renderQueue();
-                            }
-                        }
-
-                        // Mark as done immediately when completed
-                        if (data.msg && data.msg.startsWith('Completado:')) {
-                            const match = data.msg.match(/Completado: (.+)/);
-                            if (match && selectedFiles.has(match[1])) {
-                                const f = selectedFiles.get(match[1]);
-                                f.status = 'done';
-                                selectedFiles.set(match[1], f);
-                                renderQueue();
-                            }
-                        }
-
-                        if (data.msg) log(data.msg, data.type || 'info');
-
-                        if (data.type === 'complete' && data.results) {
-                            receivedComplete = true;
-                            debugAppend(`COMPLETE received: ${data.results.length} results, success=${data.stats?.success_count}`);
-                            // Show each file's error in debug
-                            data.results.forEach(r => {
-                                if (r.status === 'error') {
-                                    debugAppend(`FILE ERROR: ${r.name} → ${r.error}`);
-                                }
-                            });
-                            // Stats summary
-                            if (data.stats) {
-                                const s = data.stats;
-                                const mins = Math.floor(s.elapsed_seconds / 60);
-                                const secs = Math.round(s.elapsed_seconds % 60);
-                                const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                                log(`✅ Cola finalizada — ${s.success_count} de ${s.total_files} archivo(s) · ${s.total_pages} sección(es) · ${timeStr}`, 'success');
-                                if (s.error_count > 0) {
-                                    log(`⚠️ ${s.error_count} archivo(s) con error`, 'error');
-                                }
-                            } else {
-                                log('Cola finalizada.', 'success');
-                            }
-                            data.results.forEach(res => {
-                                if (selectedFiles.has(res.name)) {
-                                    const f = selectedFiles.get(res.name);
-                                    f.status = 'done';
-                                    f.resultDocx = res.docx;
-                                    selectedFiles.set(res.name, f);
-                                }
-                            });
-                            // Fallback: mark all remaining files as done
-                            selectedFiles.forEach((v, k) => {
-                                if (v.status !== 'done' && v.status !== 'error') {
-                                    v.status = 'done';
-                                    selectedFiles.set(k, v);
-                                }
-                            });
-                            renderQueue();
-
-                            // Show Export Result
-                            const globalActions = document.getElementById('globalActions');
-                            const exportResultPath = document.getElementById('exportResultPath');
-                            const exportResultSummary = document.getElementById('exportResultSummary');
-
-                            if (globalActions) {
-                                globalActions.style.display = 'block';
-
-                                if (data.stats) {
-                                    const fmt = exportFormat === 'both' ? 'DOCX + PDF' : exportFormat.toUpperCase();
-                                    exportResultSummary.textContent = `${data.stats.success_count} archivo(s) exportados en formato ${fmt}.`;
-                                }
-
-                                if (exportResultPath && data.output_folder) {
-                                    exportResultPath.textContent = data.output_folder;
-                                    exportResultPath.classList.add('visible');
-                                }
-                            }
-                        }
-
-                    } catch (e) {
-                        console.error("JSON Parse Error on line:", line, e);
-                        debugAppend(`PARSE ERROR: ${e.message} | line[${line.length} chars]: ${line.substring(0, 100)}...`);
-                    }
-                };
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value, { stream: true });
-                    buffer += chunk;
-                    const lines = buffer.split('\n');
-
-                    buffer = lines.pop(); // Save the last partial line
-
-                    for (const line of lines) {
-                        processLine(line);
-                    }
+            
+            let cfg = getAdvancedConfig();
+            cfg._paper_size = paperSize;
+            cfg._force_styles = forceStyles ? forceStyles.checked : true;
+            
+            // Helper to write input files to Pyodide FS
+            async function writeInputFile(inputId, filename) {
+                const input = document.getElementById(inputId);
+                if (input && input.files && input.files.length > 0) {
+                    const arrayBuffer = await input.files[0].arrayBuffer();
+                    pyodide.FS.writeFile('/tmp/' + filename, new Uint8Array(arrayBuffer));
                 }
-
-                // Flush remaining buffer after stream ends
-                debugAppend(`Stream ended. Buffer remaining: ${buffer.length} chars`);
-                if (buffer.trim()) {
-                    debugAppend(`Flushing buffer: ${buffer.substring(0, 100)}...`);
-                    processLine(buffer);
-                }
-
-                // Fallback: if complete event was never received, show stats from client state
-                if (!receivedComplete) {
-                    const doneCount = Array.from(selectedFiles.values()).filter(v => v.status === 'done').length;
-                    const totalCount = selectedFiles.size;
-                    log(`✅ Cola finalizada — ${doneCount} de ${totalCount} archivo(s) procesados.`, 'success');
-                    selectedFiles.forEach((v, k) => {
-                        if (v.status !== 'done' && v.status !== 'error') {
-                            v.status = 'done';
-                            selectedFiles.set(k, v);
-                        }
-                    });
-                    renderQueue();
-                    const globalActions = document.getElementById('globalActions');
-                    const exportResultSummary = document.getElementById('exportResultSummary');
-                    if (globalActions) {
-                        globalActions.style.display = 'block';
-                        const fmt = exportFormat === 'both' ? 'DOCX + PDF' : exportFormat.toUpperCase();
-                        if (exportResultSummary) exportResultSummary.textContent = `${doneCount} archivo(s) exportados en formato ${fmt}.`;
-                    }
-                }
-            } catch (err) {
-                log(`Error: ${err}`, 'error');
-            } finally {
-                processBtn.disabled = false;
-                processBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> PROCESAR';
             }
+            // Create /tmp folder if it doesn't exist
+            try { pyodide.FS.mkdir('/tmp'); } catch(e) {}
+            
+            // Write images to /tmp
+            await writeInputFile('coverInput', 'custom_cover.png');
+            await writeInputFile('headerInput', 'custom_header.png');
+            await writeInputFile('footerInput', 'custom_footer.png');
+            await writeInputFile('backpageInput', 'custom_backpage.png');
+            
+            let success_count = 0;
+            let error_count = 0;
+            
+            for (let [name, v] of selectedFiles.entries()) {
+                v.status = 'processing';
+                selectedFiles.set(name, v);
+                renderQueue();
+                log('Transformando: ' + name + '...', 'info');
+                
+                try {
+                    // Write file to Pyodide FS
+                    let arrayBuffer = await v.file.arrayBuffer();
+                    pyodide.FS.writeFile('/tmp/input.docx', new Uint8Array(arrayBuffer));
+                    // Write config
+                    pyodide.FS.writeFile('/tmp/config.json', JSON.stringify(cfg));
+                    
+                    // Execute python wrapper
+                    pyodide.runPython(`
+import json
+from docx import Document
+
+with open('/tmp/config.json', 'r') as f:
+    config = json.load(f)
+
+# Override upload path for Pyodide
+import types
+app = types.SimpleNamespace()
+app.config = {'UPLOAD_FOLDER': '/tmp'}
+globals()['app'] = app
+
+doc = Document('/tmp/input.docx')
+apply_styles(doc, config, config.get('_paper_size', 'letter'))
+doc.save('/tmp/output.docx')
+                    `);
+                    
+                    // Read output
+                    let outBuf = pyodide.FS.readFile('/tmp/output.docx');
+                    let blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                    
+                    let outName = prefix + name.replace('.docx', '') + suffix + '.docx';
+                    
+                    // Trigger download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = outName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    v.status = 'done';
+                    v.resultDocx = outName;
+                    success_count++;
+                    log('Completado: ' + name, 'success');
+                } catch(e) {
+                    v.status = 'error';
+                    error_count++;
+                    log('[ERROR] ' + name + ' -> ' + e.message, 'error');
+                }
+                
+                selectedFiles.set(name, v);
+                renderQueue();
+            }
+            
+            log('✅ Cola finalizada — ' + success_count + ' archivo(s) procesados correctamente.', 'success');
+            if (error_count > 0) log('⚠️ ' + error_count + ' archivo(s) fallaron.', 'error');
+            
+            processBtn.disabled = false;
+            processBtn.innerHTML = '<span>INICIAR PROCESO</span><i class="fa-solid fa-play"></i>';
         });
     }
 

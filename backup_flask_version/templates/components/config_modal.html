@@ -1,0 +1,707 @@
+<!-- ADVANCED CONFIG MODAL -->
+<div id="configModal" class="config-modal-overlay">
+    <div class="config-window">
+        <div class="config-header">
+            <span class="config-title"><i class="fa-solid fa-sliders"></i> Configurar Formato</span>
+            <button id="closeConfigBtn" class="btn-close-config"><i class="fa-solid fa-times"></i></button>
+        </div>
+
+        <!-- TABS -->
+        <div class="config-tabs">
+            <button class="tab-btn active" data-tab="tab-general">General</button>
+            <button class="tab-btn" data-tab="tab-cover">Portada</button>
+            <button class="tab-btn" data-tab="tab-toc" id="tabTocBtn" disabled>Índice</button>
+            <button class="tab-btn" data-tab="tab-headings">Títulos</button>
+            <button class="tab-btn" data-tab="tab-tables">Tablas</button>
+            <button class="tab-btn" data-tab="tab-pagenum">Numeración</button>
+            <button class="tab-btn" data-tab="tab-margins">Márgenes</button>
+        </div>
+
+        <div class="config-body">
+
+            <!-- TAB: GENERAL -->
+            <div id="tab-general" class="tab-content">
+
+                <!-- Fuente Principal -->
+                <div class="heading-card" style="border-left-color:#2c6eff;">
+                    <div class="heading-card-label" style="color:#2c6eff;">
+                        <i class="fa-solid fa-font"></i> Tipografía del Documento
+                        <span class="heading-card-hint">Cuerpo de texto principal</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Fuente Principal</label>
+                        <select id="cfgFont">
+                            <option value="Calibri">Calibri (Estándar)</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Roboto">Roboto</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Garamond">Garamond</option>
+                        </select>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Tamaño Base (pt)</label>
+                            <input type="number" id="cfgFontSize" value="11" min="8" max="16">
+                        </div>
+                        <div class="input-group">
+                            <label>Espaciado de Línea</label>
+                            <select id="cfgLineSpacing">
+                                <option value="1.0">Sencillo (1.0)</option>
+                                <option value="1.15" selected>1.15</option>
+                                <option value="1.5">1.5</option>
+                                <option value="2.0">Doble (2.0)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Alineación de Párrafo</label>
+                        <select id="cfgTextAlignment">
+                            <option value="left" selected>Izquierda</option>
+                            <option value="center">Centrado</option>
+                            <option value="right">Derecha</option>
+                            <option value="justify">Justificado</option>
+                            <option value="distribute">Distribuido (uniforme)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hipervínculos -->
+                <div class="heading-card" style="border-left-color:#93b4ff;">
+                    <div class="heading-card-label" style="color:#93b4ff;">
+                        <i class="fa-solid fa-link"></i> Hipervínculos
+                    </div>
+                    <div class="input-group">
+                        <label>Color de Hipervínculos</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgLinkColor" value="#0563C1">
+                            <input type="text" id="cfgLinkColorHex" value="#0563C1" class="hex-input" maxlength="7">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: PORTADA -->
+            <div id="tab-cover" class="tab-content hidden-tab">
+
+                <div class="cover-preview-layout">
+
+                    <!-- LEFT: Controls -->
+                    <div class="cover-controls-col">
+
+                        <!-- Fuente & Tamaño -->
+                        <div class="heading-card" style="border-left-color:#2c6eff;">
+                            <div class="heading-card-label" style="color:#2c6eff;">
+                                <i class="fa-regular fa-image"></i> Título en Portada
+                            </div>
+                            <div class="grid-2">
+                                <div class="input-group">
+                                    <label>Fuente</label>
+                                    <select id="cfgCoverFont">
+                                        <option value="Calibri">Calibri</option>
+                                        <option value="Arial">Arial</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Garamond">Garamond</option>
+                                        <option value="Montserrat">Montserrat</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>Tamaño (pt)</label>
+                                    <input type="number" id="cfgCoverFontSize" value="36" min="20" max="72">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Color & Alineación -->
+                        <div class="heading-card" style="border-left-color:#5b8fff;">
+                            <div class="heading-card-label" style="color:#5b8fff;">
+                                <i class="fa-solid fa-palette"></i> Estilo Visual
+                            </div>
+                            <div class="grid-2">
+                                <div class="input-group">
+                                    <label>Color</label>
+                                    <div class="color-picker-row">
+                                        <input type="color" id="cfgCoverColor" value="#000000">
+                                        <input type="text" id="cfgCoverColorHex" value="#000000" class="hex-input"
+                                            maxlength="7">
+                                    </div>
+                                </div>
+                                <div class="input-group">
+                                    <label>Alineación</label>
+                                    <select id="cfgCoverAlign">
+                                        <option value="center" selected>Centrado</option>
+                                        <option value="left">Izquierda</option>
+                                        <option value="right">Derecha</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:16px; margin-top:8px;">
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="cfgCoverBold" checked>
+                                    <label for="cfgCoverBold">Negrita</label>
+                                </div>
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="cfgCoverItalic">
+                                    <label for="cfgCoverItalic">Cursiva</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Posición y Dimensiones -->
+                        <div class="heading-card" style="border-left-color:#93b4ff;">
+                            <div class="heading-card-label" style="color:#93b4ff;">
+                                <i class="fa-solid fa-up-down-left-right"></i> Posición y Tamaño
+                                <span class="heading-card-hint">Arrastra en la vista previa</span>
+                            </div>
+                            <div class="input-group">
+                                <label>Posición Vertical: <strong id="coverPosYLabel">55</strong>%</label>
+                                <input type="range" id="cfgCoverPosY" min="10" max="90" value="55"
+                                    class="cover-pos-slider">
+                            </div>
+                            <div class="input-group" style="margin-top:8px;">
+                                <label>Posición Horizontal: <strong id="coverPosXLabel">50</strong>%</label>
+                                <input type="range" id="cfgCoverPosX" min="10" max="90" value="50"
+                                    class="cover-pos-slider">
+                            </div>
+                            <div class="input-group" style="margin-top:8px;">
+                                <label>Ancho del Título: <strong id="coverWidthLabel">80</strong>%</label>
+                                <input type="range" id="cfgCoverWidth" min="40" max="100" value="80"
+                                    class="cover-pos-slider">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT: Mini Preview -->
+                    <div class="cover-preview-col">
+                        <div class="cover-preview-label">Vista Previa</div>
+                        <div class="cover-mini-preview" id="coverMiniPreview">
+                            <!-- Cover image bg (set dynamically) -->
+                            <div class="cover-preview-bg" id="coverPreviewBg"></div>
+                            <!-- Guide line -->
+                            <div class="cover-preview-guide" id="coverPreviewGuide"></div>
+                            <!-- Draggable Title -->
+                            <div class="cover-preview-title" id="coverPreviewTitle">Título de Ejemplo</div>
+                            <!-- Margin indicators -->
+                            <div class="cover-preview-margin cover-preview-margin-top"></div>
+                            <div class="cover-preview-margin cover-preview-margin-bottom"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- TAB: ÍNDICE -->
+            <div id="tab-toc" class="tab-content hidden-tab">
+
+                <!-- Título del Índice -->
+                <div class="heading-card" style="border-left-color:#2c6eff;">
+                    <div class="heading-card-label" style="color:#2c6eff;">
+                        <i class="fa-solid fa-list-ol"></i> Encabezado del Índice
+                        <span class="heading-card-hint">Título que aparece arriba de la tabla de contenidos</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Texto del Título</label>
+                        <input type="text" id="cfgTocTitle" value="ÍNDICE" placeholder="ÍNDICE">
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Tamaño (pt)</label>
+                            <input type="number" id="cfgTocTitleSize" value="18" min="12" max="36">
+                        </div>
+                        <div class="input-group">
+                            <label>Color del Título</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgTocTitleColor" value="#000000">
+                                <input type="text" id="cfgTocTitleColorHex" value="#000000" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px; margin-top:6px;">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgTocTitleBold" checked>
+                            <label for="cfgTocTitleBold">Negrita</label>
+                        </div>
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgTocTitleItalic">
+                            <label for="cfgTocTitleItalic">Cursiva</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estilo y Estructura -->
+                <div class="heading-card" style="border-left-color:#5b8fff;">
+                    <div class="heading-card-label" style="color:#5b8fff;">
+                        <i class="fa-solid fa-palette"></i> Estilo del Índice
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Estilo</label>
+                            <select id="cfgTocStyle">
+                                <option value="dotted" selected>Punteado (estándar)</option>
+                                <option value="classic">Clásico (sin puntos)</option>
+                                <option value="modern">Moderno (minimalista)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Profundidad</label>
+                            <select id="cfgTocDepth">
+                                <option value="1">Solo Heading 1</option>
+                                <option value="2" selected>H1 + H2</option>
+                                <option value="3">H1 + H2 + H3</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colores de Entradas -->
+                <div class="heading-card" style="border-left-color:#93b4ff;">
+                    <div class="heading-card-label" style="color:#93b4ff;">
+                        <i class="fa-solid fa-swatchbook"></i> Colores de Entradas
+                        <span class="heading-card-hint">Personaliza los colores de texto y números de página</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Texto de Entradas</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgTocEntryColor" value="#000000">
+                                <input type="text" id="cfgTocEntryColorHex" value="#000000" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Nro. de Página</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgTocPageColor" value="#000000">
+                                <input type="text" id="cfgTocPageColorHex" value="#000000" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Color del Separador / Puntos</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgTocLeaderColor" value="#999999">
+                            <input type="text" id="cfgTocLeaderColorHex" value="#999999" class="hex-input"
+                                maxlength="7">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: HEADINGS -->
+            <div id="tab-headings" class="tab-content hidden-tab">
+
+                <!-- Título del Documento (primera oración del doc original) -->
+                <div class="heading-card" style="border-left-color: #2c6eff;">
+                    <div class="heading-card-label" style="color:#2c6eff;">
+                        <i class="fa-solid fa-heading"></i> Título del Documento
+                        <span class="heading-card-hint">Primera línea del documento original</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Fuente</label>
+                            <select id="cfgDocTitleFont">
+                                <option value="">← Usar fuente principal</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Georgia">Georgia</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Tamaño (pt)</label>
+                            <input type="number" id="cfgDocTitleSize" value="18" min="10" max="48">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Color</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgDocTitleColor" value="#000000">
+                                <input type="text" id="cfgDocTitleColorHex" value="#000000" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Alineación</label>
+                            <select id="cfgDocTitleAlign">
+                                <option value="left" selected>Izquierda</option>
+                                <option value="center">Centrado</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px; margin-top:6px;">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgDocTitleBold" checked>
+                            <label for="cfgDocTitleBold">Negrita</label>
+                        </div>
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="cfgDocTitleItalic">
+                            <label for="cfgDocTitleItalic">Cursiva</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- H1 -->
+                <div class="heading-card" style="border-left-color: #5b8fff;">
+                    <div class="heading-card-label" style="color:#5b8fff;">
+                        <i class="fa-solid fa-h"></i> Títulos de Sección
+                        <span class="heading-card-hint">Heading 1 / Numerados (ej: 1. Título)</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Tamaño (pt)</label>
+                            <input type="number" id="cfgH1Size" value="16" min="10" max="36">
+                        </div>
+                        <div class="input-group">
+                            <label>Color</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgH1Color" value="#000000">
+                                <input type="text" id="cfgH1ColorHex" value="#000000" class="hex-input" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="cfgH1Bold" checked>
+                        <label for="cfgH1Bold">Negrita</label>
+                    </div>
+                </div>
+
+                <!-- H2 -->
+                <div class="heading-card" style="border-left-color: #93b4ff;">
+                    <div class="heading-card-label" style="color:#93b4ff;">
+                        <i class="fa-solid fa-h"></i><span
+                            style="font-size:9px;vertical-align:super;margin-left:1px">2</span> Subtítulos
+                        <span class="heading-card-hint">Heading 2 / Bold cortos</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Tamaño (pt)</label>
+                            <input type="number" id="cfgH2Size" value="13" min="10" max="28">
+                        </div>
+                        <div class="input-group">
+                            <label>Color</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgH2Color" value="#2c6eff">
+                                <input type="text" id="cfgH2ColorHex" value="#2c6eff" class="hex-input" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="cfgH2Bold" checked>
+                        <label for="cfgH2Bold">Negrita</label>
+                    </div>
+                </div>
+
+                <!-- H3 -->
+                <div class="heading-card" style="border-left-color: #bdd0ff;">
+                    <div class="heading-card-label" style="color:#bdd0ff;">
+                        <i class="fa-solid fa-h"></i><span
+                            style="font-size:9px;vertical-align:super;margin-left:1px">3</span> Sub-subtítulos
+                        <span class="heading-card-hint">Heading 3 / Numerados (ej: 3.1.1 Detalle)</span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Tamaño (pt)</label>
+                            <input type="number" id="cfgH3Size" value="12" min="8" max="24">
+                        </div>
+                        <div class="input-group">
+                            <label>Color</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgH3Color" value="#555555">
+                                <input type="text" id="cfgH3ColorHex" value="#555555" class="hex-input" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="cfgH3Bold" checked>
+                        <label for="cfgH3Bold">Negrita</label>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: NUMERACIÓN DE PÁGINAS -->
+            <div id="tab-pagenum" class="tab-content hidden-tab">
+
+                <!-- Activar / Desactivar -->
+                <div class="heading-card" style="border-left-color:#2c6eff;">
+                    <div class="heading-card-label" style="color:#2c6eff;">
+                        <i class="fa-solid fa-hashtag"></i> Numeración de Páginas
+                        <span class="heading-card-hint">No aplica a portada ni contraportada</span>
+                    </div>
+                    <div class="checkbox-row" style="margin-bottom:10px;">
+                        <input type="checkbox" id="cfgPageNumEnabled" checked>
+                        <label for="cfgPageNumEnabled">Activar numeración de páginas</label>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Estilo</label>
+                            <select id="cfgPageNumStyle">
+                                <option value="arabic" selected>Arábigo (1, 2, 3…)</option>
+                                <option value="roman_lower">Romano min. (i, ii, iii…)</option>
+                                <option value="roman_upper">Romano may. (I, II, III…)</option>
+                                <option value="letter_lower">Letras min. (a, b, c…)</option>
+                                <option value="letter_upper">Letras may. (A, B, C…)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Posición</label>
+                            <select id="cfgPageNumPosition">
+                                <option value="center" selected>Centro</option>
+                                <option value="right">Derecha</option>
+                                <option value="left">Izquierda</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Formato de pantalla</label>
+                        <select id="cfgPageNumFormat">
+                            <option value="page_only" selected>Solo número &nbsp;(1)</option>
+                            <option value="page_of_total">N de M &nbsp;(1 de 12)</option>
+                            <option value="dash">Guiones &nbsp;(- 1 -)</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: MÁRGENES -->
+            <div id="tab-margins" class="tab-content hidden-tab">
+
+                <div class="cover-preview-layout">
+                    <div class="cover-controls-col">
+
+                        <!-- Márgenes verticales -->
+                        <div class="heading-card" style="border-left-color:#2c6eff;">
+                            <div class="heading-card-label" style="color:#2c6eff;">
+                                <i class="fa-solid fa-arrows-up-down"></i> Márgenes Verticales
+                                <span class="heading-card-hint">en centímetros</span>
+                            </div>
+                            <div class="grid-2">
+                                <div class="input-group">
+                                    <label>Superior</label>
+                                    <input type="number" id="cfgMarginTop" value="3.7" step="0.1" min="1" max="6">
+                                </div>
+                                <div class="input-group">
+                                    <label>Inferior</label>
+                                    <input type="number" id="cfgMarginBottom" value="3.0" step="0.1" min="1" max="6">
+                                </div>
+                            </div>
+                            <div class="cfg-info-note">
+                                <i class="fa-solid fa-circle-info"></i>
+                                Incluye espacio para encabezado.
+                            </div>
+                        </div>
+
+                        <!-- Márgenes horizontales -->
+                        <div class="heading-card" style="border-left-color:#5b8fff;">
+                            <div class="heading-card-label" style="color:#5b8fff;">
+                                <i class="fa-solid fa-arrows-left-right"></i> Márgenes Horizontales
+                                <span class="heading-card-hint">en centímetros</span>
+                            </div>
+                            <div class="grid-2">
+                                <div class="input-group">
+                                    <label>Izquierda</label>
+                                    <input type="number" id="cfgMarginLeft" value="3.0" step="0.1" min="1" max="6">
+                                </div>
+                                <div class="input-group">
+                                    <label>Derecha</label>
+                                    <input type="number" id="cfgMarginRight" value="3.0" step="0.1" min="1" max="6">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT: Margins Preview -->
+                    <div class="cover-preview-col">
+                        <div class="cover-preview-label">Vista Previa</div>
+                        <div class="margins-mini-preview" id="marginsMiniPreview">
+                            <div class="margin-preview-header-img" id="marginPreviewHeader"></div>
+                            <div class="margin-preview-footer-img" id="marginPreviewFooter"></div>
+                            <div class="margin-zone margin-zone-top" id="marginZoneTop"></div>
+                            <div class="margin-zone margin-zone-bottom" id="marginZoneBottom"></div>
+                            <div class="margin-zone margin-zone-left" id="marginZoneLeft"></div>
+                            <div class="margin-zone margin-zone-right" id="marginZoneRight"></div>
+                            <div class="margin-content-zone" id="marginContentZone">
+                                <div class="margin-content-lines">
+                                    <div class="mcl"></div>
+                                    <div class="mcl"></div>
+                                    <div class="mcl"></div>
+                                    <div class="mcl"></div>
+                                    <div class="mcl short"></div>
+                                    <div class="mcl"></div>
+                                    <div class="mcl"></div>
+                                    <div class="mcl short"></div>
+                                </div>
+                            </div>
+                            <span class="margin-label ml-top" id="mlTop">3.7</span>
+                            <span class="margin-label ml-bottom" id="mlBottom">3.0</span>
+                            <span class="margin-label ml-left" id="mlLeft">3.0</span>
+                            <span class="margin-label ml-right" id="mlRight">3.0</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB: TABLAS -->
+            <div id="tab-tables" class="tab-content hidden-tab">
+
+                <!-- Live Table Preview -->
+                <div class="preview-container">
+                    <div class="heading-card-label" style="color:var(--text-muted);margin-bottom:6px;">
+                        <i class="fa-solid fa-eye"></i> Vista Previa de Tabla
+                    </div>
+                    <div class="table-preview-box">
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>Columna A</th>
+                                    <th>Columna B</th>
+                                    <th>Columna C</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Dato 1</td>
+                                    <td>Valor</td>
+                                    <td>100</td>
+                                </tr>
+                                <tr>
+                                    <td>Dato 2</td>
+                                    <td>Texto</td>
+                                    <td>250</td>
+                                </tr>
+                                <tr>
+                                    <td>Dato 3</td>
+                                    <td>Info</td>
+                                    <td>75</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Colores de encabezado -->
+                <div class="heading-card" style="border-left-color:#2c6eff;">
+                    <div class="heading-card-label" style="color:#2c6eff;">
+                        <i class="fa-solid fa-table-cells"></i> Fila de Encabezado
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Fondo</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgTableHeaderBg" value="#2c6eff">
+                                <input type="text" id="cfgTableHeaderBgHex" value="#2c6eff" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Texto</label>
+                            <div class="color-picker-row">
+                                <input type="color" id="cfgTableHeaderText" value="#FFFFFF">
+                                <input type="text" id="cfgTableHeaderTextHex" value="#FFFFFF" class="hex-input"
+                                    maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bordes -->
+                <div class="heading-card" style="border-left-color:#5b8fff;">
+                    <div class="heading-card-label" style="color:#5b8fff;">
+                        <i class="fa-solid fa-border-all"></i> Bordes
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Bordes Verticales</label>
+                            <select id="cfgTableBorderV">
+                                <option value="none">Ninguno</option>
+                                <option value="single" selected>Simple (Fino)</option>
+                                <option value="thick">Grueso</option>
+                                <option value="dashed">Punteado</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Bordes Horizontales</label>
+                            <select id="cfgTableBorderH">
+                                <option value="none">Ninguno</option>
+                                <option value="single" selected>Simple (Fino)</option>
+                                <option value="thick">Grueso</option>
+                                <option value="dashed">Punteado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Color de Bordes Verticales</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgTableBorderVColor" value="#000000">
+                            <input type="text" id="cfgTableBorderVColorHex" value="#000000" class="hex-input"
+                                maxlength="7">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Color de Bordes Horizontales</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgTableBorderHColor" value="#000000">
+                            <input type="text" id="cfgTableBorderHColorHex" value="#000000" class="hex-input"
+                                maxlength="7">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Color del Contorno (Outline)</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgTableOutlineColor" value="#000000">
+                            <input type="text" id="cfgTableOutlineColorHex" value="#000000" class="hex-input"
+                                maxlength="7">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Grosor del Contorno (pt)</label>
+                        <input type="number" id="cfgTableOutlineSz" value="4" min="2" max="16" step="2">
+                    </div>
+                </div>
+
+                <!-- Opciones extras -->
+                <div class="heading-card" style="border-left-color:#93b4ff;">
+                    <div class="heading-card-label" style="color:#93b4ff;">
+                        <i class="fa-solid fa-sliders"></i> Opciones Adicionales
+                    </div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="cfgTableZebra" checked>
+                        <label for="cfgTableZebra">Filas Alternas (Zebra)</label>
+                    </div>
+                    <div class="input-group" style="margin-top:8px;">
+                        <label>Color de Filas Alternas</label>
+                        <div class="color-picker-row">
+                            <input type="color" id="cfgTableZebraColor" value="#f1f5f9">
+                            <input type="text" id="cfgTableZebraColorHex" value="#f1f5f9" class="hex-input"
+                                maxlength="7">
+                        </div>
+                    </div>
+                    <div class="checkbox-row" style="margin-top:6px;">
+                        <input type="checkbox" id="cfgTableNumberAlign" checked>
+                        <label for="cfgTableNumberAlign">Alinear Números a la Derecha</label>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="config-footer">
+            <button id="saveConfigBtn" class="btn-primary" style="width:100%;">
+                <i class="fa-solid fa-floppy-disk"></i> Aplicar Cambios
+            </button>
+        </div>
+    </div>
+</div>

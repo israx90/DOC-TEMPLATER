@@ -1,0 +1,133 @@
+name: Build Desktop Installers
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v3.5.0
+  workflow_dispatch:  # Also allow manual trigger from GitHub UI
+
+jobs:
+  # ============================================
+  # macOS Build (.app → .dmg)
+  # ============================================
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Tesseract
+        run: brew install tesseract tesseract-lang
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app + .dmg
+        run: python build.py --dmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/*.dmg
+          retention-days: 30
+
+  # ============================================
+  # Windows Build (.exe)
+  # ============================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Tesseract
+        run: choco install tesseract --no-progress -y
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .exe
+        run: python build.py
+
+      - name: Create ZIP of dist folder
+        run: Compress-Archive -Path "dist/EDTECH DOC TEMPLATER/*" -DestinationPath "dist/EDTECH_DOC_TEMPLATER_Windows.zip"
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/EDTECH_DOC_TEMPLATER_Windows.zip
+          retention-days: 30
+
+  # ============================================
+  # Windows Online Installer (Inno Setup EXE)
+  # ============================================
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile Installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/Setup_EDTECH_DOC_TEMPLATER_*.exe
+          retention-days: 30
+
+  # ============================================
+  # Create GitHub Release (optional, on tags)
+  # ============================================
+  release:
+    needs: [build-macos, build-windows, build-installer]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: artifacts/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: artifacts/
+
+      - name: Download Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EDTECH DOC TEMPLATER ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: artifacts/*
