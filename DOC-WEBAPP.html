@@ -1008,6 +1008,12 @@
 </div>
 
     <script>
+
+window.addEventListener('error', function(e) {
+    console.error('GLOBAL_ERROR:', e.message, 'at', e.filename || 'inline', 'line:', e.lineno, 'col:', e.colno);
+    document.title = 'ERROR: ' + e.message;
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     // === ELEMENTS ===
     const coverInput = document.getElementById('coverInput');
@@ -2540,6 +2546,7 @@ doc.save('/tmp/output.docx')
     }
 });
 
+console.log("WEBAPP_INIT_COMPLETE");
 </script>
 </body>
 

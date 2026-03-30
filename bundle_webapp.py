@@ -46,8 +46,14 @@ html = html.replace('</head>', f'    {jszip_script}\n    {pyodide_script}\n</hea
 with open('static/js/main_web.js', 'r', encoding='utf-8') as f:
     main_js = f.read()
 
-# Replace script tag with inline script
-html = re.sub(r'<script src="static/js/main.js"></script>', f'<script>\n{main_js}\n</script>', html)
+# Replace script tag with inline script, adding global error handler
+error_wrapper = """
+window.addEventListener('error', function(e) {
+    console.error('GLOBAL_ERROR:', e.message, 'at', e.filename || 'inline', 'line:', e.lineno, 'col:', e.colno);
+    document.title = 'ERROR: ' + e.message;
+});
+"""
+html = re.sub(r'<script src="static/js/main.js"></script>', f'<script>\n{error_wrapper}\n{main_js}\nconsole.log("WEBAPP_INIT_COMPLETE");\n</script>', html)
 
 # EDD template code is preserved so we can implement it natively.
 
