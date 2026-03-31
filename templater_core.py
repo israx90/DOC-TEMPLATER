@@ -21,6 +21,50 @@ def hex_to_rgb(hex_code):
     hex_code = hex_code.lstrip('#')
     return tuple((int(hex_code[i:i + 2], 16) for i in (0, 2, 4)))
 
+import struct
+
+def _get_image_dimensions(data):
+    """Read image width/height from raw bytes (PNG/JPEG) without Pillow."""
+    try:
+        # PNG: 8-byte signature, then IHDR chunk with width(4) + height(4)
+        if data[:8] == b'\x89PNG\r\n\x1a\n':
+            w = struct.unpack('>I', data[16:20])[0]
+            h = struct.unpack('>I', data[20:24])[0]
+            return w, h
+        # JPEG: scan for SOF0/SOF2 marker (0xFFC0 or 0xFFC2)
+        if data[:2] == b'\xff\xd8':
+            i = 2
+            while i < len(data) - 9:
+                if data[i] != 0xFF:
+                    i += 1
+                    continue
+                marker = data[i + 1]
+                if marker in (0xC0, 0xC2):  # SOF0 or SOF2
+                    h = struct.unpack('>H', data[i + 5:i + 7])[0]
+                    w = struct.unpack('>H', data[i + 7:i + 9])[0]
+                    return w, h
+                seg_len = struct.unpack('>H', data[i + 2:i + 4])[0]
+                i += 2 + seg_len
+        # GIF
+        if data[:6] in (b'GIF87a', b'GIF89a'):
+            w = struct.unpack('<H', data[6:8])[0]
+            h = struct.unpack('<H', data[8:10])[0]
+            return w, h
+        # BMP
+        if data[:2] == b'BM':
+            w = struct.unpack('<I', data[18:22])[0]
+            h = abs(struct.unpack('<i', data[22:26])[0])
+            return w, h
+    except Exception:
+        pass
+    # Fallback: try PIL if available
+    try:
+        from PIL import Image as _PIL_Image
+        img = _PIL_Image.open(io.BytesIO(data))
+        return img.size
+    except Exception:
+        return None, None
+
 def set_cell_border(cell, **kwargs):
     """Set borders on a table cell. Pass top/bottom/left/right as dicts with val, sz, color."""
     tc = cell._tc
@@ -198,18 +242,13 @@ def _embed_raster_behind_text(para, image_path, ext, width_emu=None):
     content_type = content_type_map.get(ext.lower(), 'image/png')
     with open(image_path, 'rb') as f:
         image_bytes = f.read()
-    try:
-        from PIL import Image as _PIL_Image
-        import io as _io
-        img = _PIL_Image.open(_io.BytesIO(image_bytes))
-        img_w, img_h = img.size
-        if width_emu is None:
-            width_emu = int(7.5 * 914400)
+    img_w, img_h = _get_image_dimensions(image_bytes)
+    if width_emu is None:
+        width_emu = int(7.5 * 914400)
+    if img_w and img_h:
         height_emu = int(width_emu * img_h / img_w)
-    except Exception:
-        if width_emu is None:
-            width_emu = int(7.5 * 914400)
-        height_emu = int(914400)
+    else:
+        height_emu = int(914400)  # Fallback: 1 inch
     header_part = para.part
     uid = _uuid.uuid4().hex[:8]
     part_name = PackURI('/word/media/hdr_{}{}'.format(uid, ext))
