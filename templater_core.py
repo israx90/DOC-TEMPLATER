@@ -10,6 +10,13 @@ import json
 import os
 import re
 
+def _get_upload_folder():
+    """Get upload folder: Flask app config or /tmp for Pyodide/WebApp mode."""
+    try:
+        return app.config['UPLOAD_FOLDER']
+    except Exception:
+        return '/tmp'
+
 def hex_to_rgb(hex_code):
     hex_code = hex_code.lstrip('#')
     return tuple((int(hex_code[i:i + 2], 16) for i in (0, 2, 4)))
@@ -33,7 +40,7 @@ def border_style_to_val(style):
 
 def embed_header_image(doc):
     """Embed the uploaded header image (PNG/JPG/EMF/WMF) into every section's header."""
-    upload_folder = app.config['UPLOAD_FOLDER']
+    upload_folder = _get_upload_folder()
     header_path = None
     header_ext = None
     for ext in ('.png', '.jpg', '.jpeg', '.emf', '.wmf', '.gif', '.bmp'):
@@ -83,7 +90,7 @@ def clean_footers(doc):
 
 def embed_footer_image(doc):
     """Embed the uploaded footer image (PNG/JPG/EMF/WMF) into every section's footer (behind text)."""
-    upload_folder = app.config['UPLOAD_FOLDER']
+    upload_folder = _get_upload_folder()
     footer_path = None
     footer_ext = None
     for ext in ('.png', '.jpg', '.jpeg', '.emf', '.wmf', '.gif', '.bmp'):
@@ -387,7 +394,7 @@ def insert_cover_page(doc, pw=None, ph=None, config=None):
         if p.text.strip():
             title_text = p.text.strip()
             break
-    upload_folder = app.config['UPLOAD_FOLDER']
+    upload_folder = _get_upload_folder()
     cover_path = None
     for ext in ['.png', '.jpg', '.jpeg']:
         cand = os.path.join(upload_folder, 'custom_cover' + ext)
@@ -483,7 +490,7 @@ def insert_back_page(doc, pw=None, ph=None):
     Append a final page with only a full-page background image.
     Uses a dedicated new section so it has no header, footer, or page numbers.
     """
-    upload_folder = app.config['UPLOAD_FOLDER']
+    upload_folder = _get_upload_folder()
     back_path = None
     for ext in ['.png', '.jpg', '.jpeg']:
         cand = os.path.join(upload_folder, 'custom_backpage' + ext)
