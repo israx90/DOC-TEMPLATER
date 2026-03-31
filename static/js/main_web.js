@@ -40,34 +40,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let paperSize = 'letter';
     let exportFormat = 'docx';
 
-    // === TESSERACT DETECTION ===
+    // === TESSERACT DETECTION (WebApp mode: not available) ===
     function checkTesseract() {
         const statusEl = document.getElementById('tesseractStatus');
         const dotEl = document.getElementById('tessDot');
         const labelEl = document.getElementById('tessLabel');
         if (!statusEl) return;
         statusEl.style.display = 'flex';
-        labelEl.textContent = 'Verificando...';
-        dotEl.className = 'tess-dot';
-        fetch('/check_tesseract')
-            .then(r => r.json())
-            .then(data => {
-                if (data.available && data.has_ocr_deps) {
-                    dotEl.className = 'tess-dot ok';
-                    const ver = data.version || '';
-                    labelEl.textContent = ver.charAt(0).toUpperCase() + ver.slice(1);
-                } else if (data.available && !data.has_ocr_deps) {
-                    dotEl.className = 'tess-dot fail';
-                    labelEl.textContent = 'Falta: pip install img2table';
-                } else {
-                    dotEl.className = 'tess-dot fail';
-                    labelEl.textContent = 'No detectado — brew install tesseract';
-                }
-            })
-            .catch(() => {
-                dotEl.className = 'tess-dot fail';
-                labelEl.textContent = 'Error de conexión';
-            });
+        dotEl.className = 'tess-dot fail';
+        labelEl.textContent = 'No disponible en modo Web';
     }
 
     // Show/hide indicator based on OCR toggle
@@ -91,42 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadDebugInfo() {
         if (!debugLog) return;
-        debugLog.textContent = '> Cargando diagnóstico...\n';
-        fetch('/debug_info')
-            .then(r => r.json())
-            .then(info => {
-                let out = '=== EDTECH DOC TEMPLATER DEBUG ===\n';
-                out += `> Frozen: ${info.frozen}\n`;
-                out += `> Platform: ${info.platform}\n`;
-                out += `> Arch: ${info.arch}\n`;
-                out += `> Python: ${info.python_version}\n`;
-                out += `> Bundle Dir: ${info.bundle_dir}\n`;
-                out += `> User Data: ${info.user_data}\n`;
-                out += `> Upload: ${info.upload_folder}\n`;
-                out += `> Output: ${info.output_folder}\n`;
-                out += `> Static: ${info.static_folder}\n`;
-                out += `> Templates: ${info.template_folder}\n`;
-                out += `> HAS_OCR: ${info.has_ocr}\n`;
-                out += '--- Tesseract ---\n';
-                const t = info.tesseract || {};
-                out += `> Available: ${t.available}\n`;
-                out += `> Version: ${t.version || 'N/A'}\n`;
-                if (t.bundled_path) out += `> Bundled Path: ${t.bundled_path}\n`;
-                if (t.bundled_exists !== undefined) out += `> Bundled Exists: ${t.bundled_exists}\n`;
-                if (t.bundled_files) out += `> Bundled Dylibs: ${t.bundled_files.join(', ')}\n`;
-                if (t.cmd) out += `> Used Cmd: ${t.cmd}\n`;
-                if (t.returncode !== undefined) out += `> Return Code: ${t.returncode}\n`;
-                if (t.stderr) out += `> Stderr: ${t.stderr}\n`;
-                if (t.error) out += `> Error: ${t.error}\n`;
-                if (info.dyld_library_path) out += `> DYLD_LIBRARY_PATH: ${info.dyld_library_path}\n`;
-                if (info.dyld_fallback) out += `> DYLD_FALLBACK: ${info.dyld_fallback}\n`;
-                out += '=================================\n';
-                debugLog.textContent = out;
-                debugLog.scrollTop = debugLog.scrollHeight;
-            })
-            .catch(err => {
-                debugLog.textContent = `> Error: ${err.message}\n`;
-            });
+        let out = '=== EDTECH DOC TEMPLATER (WebApp Mode) ===\n';
+        out += '> Runtime: Pyodide (WebAssembly)\n';
+        out += '> Platform: ' + navigator.platform + '\n';
+        out += '> UserAgent: ' + navigator.userAgent.substring(0, 80) + '\n';
+        out += '> JSZip: ' + (typeof JSZip !== 'undefined' ? 'Loaded' : 'Missing') + '\n';
+        out += '> Pyodide: ' + (typeof loadPyodide !== 'undefined' ? 'Available' : 'Missing') + '\n';
+        out += '> Pyodide Init: ' + (window.pyodide ? 'Yes' : 'Not yet') + '\n';
+        out += '> OCR: Not available (requires local Tesseract)\n';
+        out += '===========================================\n';
+        debugLog.textContent = out;
     }
 
     if (debugToggle && debugBody) {

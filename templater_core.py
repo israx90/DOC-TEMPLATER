@@ -7,6 +7,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import io
 import json
+import os
 import re
 
 def hex_to_rgb(hex_code):
