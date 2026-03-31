@@ -1074,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await micropip.install("lxml");
                     
                     // Fetch and evaluate templater_core.py
-                    const core_resp = await fetch('templater_core.py');
+                    const core_resp = await fetch('templater_core.py?v=' + Date.now());
                     const core_code = await core_resp.text();
                     window.pyodide.runPython(core_code);
                 } catch(e) {
