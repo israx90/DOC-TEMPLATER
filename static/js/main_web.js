@@ -1102,16 +1102,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (input && input.files && input.files.length > 0) {
                     const arrayBuffer = await input.files[0].arrayBuffer();
                     pyodide.FS.writeFile('/tmp/' + filename, new Uint8Array(arrayBuffer));
+                    return true;
                 }
+                return false;
             }
+            
+            // Read image dimensions using browser Image API
+            function getImageDimensions(inputId) {
+                return new Promise((resolve) => {
+                    const input = document.getElementById(inputId);
+                    if (!input || !input.files || input.files.length === 0) { resolve(null); return; }
+                    const url = URL.createObjectURL(input.files[0]);
+                    const img = new Image();
+                    img.onload = () => { resolve({w: img.naturalWidth, h: img.naturalHeight}); URL.revokeObjectURL(url); };
+                    img.onerror = () => { resolve(null); URL.revokeObjectURL(url); };
+                    img.src = url;
+                });
+            }
+            
             // Create /tmp folder if it doesn't exist
             try { pyodide.FS.mkdir('/tmp'); } catch(e) {}
             
-            // Write images to /tmp
+            // Write images to /tmp and capture dimensions
             await writeInputFile('coverInput', 'custom_cover.png');
             await writeInputFile('headerInput', 'custom_header.png');
             await writeInputFile('footerInput', 'custom_footer.png');
             await writeInputFile('backpageInput', 'custom_backpage.png');
+            
+            // Pass image dimensions to Python via config
+            const headerDims = await getImageDimensions('headerInput');
+            const footerDims = await getImageDimensions('footerInput');
+            if (headerDims) cfg._header_img_dims = headerDims;
+            if (footerDims) cfg._footer_img_dims = footerDims;
             
             let success_count = 0;
             let error_count = 0;

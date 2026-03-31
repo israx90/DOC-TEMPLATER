@@ -82,8 +82,10 @@ def border_style_to_val(style):
     mapping = {'single': 'single', 'thick': 'thick', 'dashed': 'dashed', 'none': 'nil'}
     return mapping.get(style, 'single')
 
-def embed_header_image(doc):
+def embed_header_image(doc, config=None):
     """Embed the uploaded header image (PNG/JPG/EMF/WMF) into every section's header."""
+    if config is None:
+        config = {}
     upload_folder = _get_upload_folder()
     header_path = None
     header_ext = None
@@ -116,7 +118,7 @@ def embed_header_image(doc):
             pf.space_before = Pt(0)
             pf.space_after = Pt(0)
             if not is_vector:
-                _embed_raster_behind_text(para, header_path, header_ext, width_emu=page_width)
+                _embed_raster_behind_text(para, header_path, header_ext, width_emu=page_width, img_dims=config.get('_header_img_dims'))
             else:
                 _embed_vector_image(para, header_path, header_ext, width_emu=page_width)
     except Exception as e:
@@ -232,7 +234,7 @@ def _embed_vector_footer(para, image_path, ext, width_emu=None, page_height_emu=
     r_elem.append(pict_element)
     p.append(r_elem)
 
-def _embed_raster_behind_text(para, image_path, ext, width_emu=None):
+def _embed_raster_behind_text(para, image_path, ext, width_emu=None, img_dims=None):
     """Embed PNG/JPG as a behind-text floating anchor image (behindDoc=1) in a header paragraph."""
     from docx.opc.part import Part
     from docx.opc.packuri import PackURI
@@ -242,15 +244,20 @@ def _embed_raster_behind_text(para, image_path, ext, width_emu=None):
     content_type = content_type_map.get(ext.lower(), 'image/png')
     with open(image_path, 'rb') as f:
         image_bytes = f.read()
-    img_w, img_h = _get_image_dimensions(image_bytes)
-    print('HEADER_IMG_DEBUG: file_size={} bytes, img_w={}, img_h={}, width_emu={}'.format(len(image_bytes), img_w, img_h, width_emu))
+    # Use browser-provided dimensions if available, then try binary header parsing
+    if img_dims and img_dims.get('w') and img_dims.get('h'):
+        img_w, img_h = img_dims['w'], img_dims['h']
+        print('HEADER_IMG: using browser dims {}x{}'.format(img_w, img_h))
+    else:
+        img_w, img_h = _get_image_dimensions(image_bytes)
+        print('HEADER_IMG: parsed dims {}x{}'.format(img_w, img_h))
     if width_emu is None:
         width_emu = int(7.5 * 914400)
     if img_w and img_h:
         height_emu = int(width_emu * img_h / img_w)
     else:
         height_emu = int(914400)  # Fallback: 1 inch
-    print('HEADER_IMG_DEBUG: final cx={}, cy={}'.format(int(width_emu), int(height_emu)))
+    print('HEADER_IMG: final cx={}, cy={} (ratio={:.3f})'.format(int(width_emu), int(height_emu), int(height_emu)/int(width_emu) if width_emu else 0))
     header_part = para.part
     uid = _uuid.uuid4().hex[:8]
     part_name = PackURI('/word/media/hdr_{}{}'.format(uid, ext))
@@ -908,7 +915,7 @@ def apply_styles(doc, config, paper_size='letter'):
         section.left_margin = Cm(float(margins.get('left', 3.0)))
         section.right_margin = Cm(float(margins.get('right', 3.0)))
     clean_footers(doc)
-    embed_header_image(doc)
+    embed_header_image(doc, config=config)
     pn_cfg = config.get('page_numbers', {})
     font_name = config.get('font_name', 'Calibri')
     font_size = int(config.get('font_size', 11))
