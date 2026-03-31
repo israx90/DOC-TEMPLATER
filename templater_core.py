@@ -243,12 +243,14 @@ def _embed_raster_behind_text(para, image_path, ext, width_emu=None):
     with open(image_path, 'rb') as f:
         image_bytes = f.read()
     img_w, img_h = _get_image_dimensions(image_bytes)
+    print('HEADER_IMG_DEBUG: file_size={} bytes, img_w={}, img_h={}, width_emu={}'.format(len(image_bytes), img_w, img_h, width_emu))
     if width_emu is None:
         width_emu = int(7.5 * 914400)
     if img_w and img_h:
         height_emu = int(width_emu * img_h / img_w)
     else:
         height_emu = int(914400)  # Fallback: 1 inch
+    print('HEADER_IMG_DEBUG: final cx={}, cy={}'.format(int(width_emu), int(height_emu)))
     header_part = para.part
     uid = _uuid.uuid4().hex[:8]
     part_name = PackURI('/word/media/hdr_{}{}'.format(uid, ext))
