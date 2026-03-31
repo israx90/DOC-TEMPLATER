@@ -53,7 +53,9 @@ window.addEventListener('error', function(e) {
     document.title = 'ERROR: ' + e.message;
 });
 """
-html = re.sub(r'<script src="static/js/main.js"></script>', f'<script>\n{error_wrapper}\n{main_js}\nconsole.log("WEBAPP_INIT_COMPLETE");\n</script>', html)
+# Use str.replace instead of re.sub to avoid corrupting JS escape sequences like \n
+inline_script = f'<script>\n{error_wrapper}\n{main_js}\nconsole.log("WEBAPP_INIT_COMPLETE");\n</script>'
+html = html.replace('<script src="static/js/main.js"></script>', inline_script)
 
 # EDD template code is preserved so we can implement it natively.
 

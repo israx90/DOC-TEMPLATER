@@ -1107,68 +1107,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadDebugInfo() {
         if (!debugLog) return;
-        debugLog.textContent = '> Cargando diagnóstico...
-';
+        debugLog.textContent = '> Cargando diagnóstico...\n';
         fetch('/debug_info')
             .then(r => r.json())
             .then(info => {
-                let out = '=== EDTECH DOC TEMPLATER DEBUG ===
-';
-                out += `> Frozen: ${info.frozen}
-`;
-                out += `> Platform: ${info.platform}
-`;
-                out += `> Arch: ${info.arch}
-`;
-                out += `> Python: ${info.python_version}
-`;
-                out += `> Bundle Dir: ${info.bundle_dir}
-`;
-                out += `> User Data: ${info.user_data}
-`;
-                out += `> Upload: ${info.upload_folder}
-`;
-                out += `> Output: ${info.output_folder}
-`;
-                out += `> Static: ${info.static_folder}
-`;
-                out += `> Templates: ${info.template_folder}
-`;
-                out += `> HAS_OCR: ${info.has_ocr}
-`;
-                out += '--- Tesseract ---
-';
+                let out = '=== EDTECH DOC TEMPLATER DEBUG ===\n';
+                out += `> Frozen: ${info.frozen}\n`;
+                out += `> Platform: ${info.platform}\n`;
+                out += `> Arch: ${info.arch}\n`;
+                out += `> Python: ${info.python_version}\n`;
+                out += `> Bundle Dir: ${info.bundle_dir}\n`;
+                out += `> User Data: ${info.user_data}\n`;
+                out += `> Upload: ${info.upload_folder}\n`;
+                out += `> Output: ${info.output_folder}\n`;
+                out += `> Static: ${info.static_folder}\n`;
+                out += `> Templates: ${info.template_folder}\n`;
+                out += `> HAS_OCR: ${info.has_ocr}\n`;
+                out += '--- Tesseract ---\n';
                 const t = info.tesseract || {};
-                out += `> Available: ${t.available}
-`;
-                out += `> Version: ${t.version || 'N/A'}
-`;
-                if (t.bundled_path) out += `> Bundled Path: ${t.bundled_path}
-`;
-                if (t.bundled_exists !== undefined) out += `> Bundled Exists: ${t.bundled_exists}
-`;
-                if (t.bundled_files) out += `> Bundled Dylibs: ${t.bundled_files.join(', ')}
-`;
-                if (t.cmd) out += `> Used Cmd: ${t.cmd}
-`;
-                if (t.returncode !== undefined) out += `> Return Code: ${t.returncode}
-`;
-                if (t.stderr) out += `> Stderr: ${t.stderr}
-`;
-                if (t.error) out += `> Error: ${t.error}
-`;
-                if (info.dyld_library_path) out += `> DYLD_LIBRARY_PATH: ${info.dyld_library_path}
-`;
-                if (info.dyld_fallback) out += `> DYLD_FALLBACK: ${info.dyld_fallback}
-`;
-                out += '=================================
-';
+                out += `> Available: ${t.available}\n`;
+                out += `> Version: ${t.version || 'N/A'}\n`;
+                if (t.bundled_path) out += `> Bundled Path: ${t.bundled_path}\n`;
+                if (t.bundled_exists !== undefined) out += `> Bundled Exists: ${t.bundled_exists}\n`;
+                if (t.bundled_files) out += `> Bundled Dylibs: ${t.bundled_files.join(', ')}\n`;
+                if (t.cmd) out += `> Used Cmd: ${t.cmd}\n`;
+                if (t.returncode !== undefined) out += `> Return Code: ${t.returncode}\n`;
+                if (t.stderr) out += `> Stderr: ${t.stderr}\n`;
+                if (t.error) out += `> Error: ${t.error}\n`;
+                if (info.dyld_library_path) out += `> DYLD_LIBRARY_PATH: ${info.dyld_library_path}\n`;
+                if (info.dyld_fallback) out += `> DYLD_FALLBACK: ${info.dyld_fallback}\n`;
+                out += '=================================\n';
                 debugLog.textContent = out;
                 debugLog.scrollTop = debugLog.scrollHeight;
             })
             .catch(err => {
-                debugLog.textContent = `> Error: ${err.message}
-`;
+                debugLog.textContent = `> Error: ${err.message}\n`;
             });
     }
 
@@ -2540,8 +2513,7 @@ doc.save('/tmp/output.docx')
         // Also append to debug console
         const dl = document.getElementById('debugLog');
         if (dl) {
-            dl.textContent += `[${time}] [${type.toUpperCase()}] ${msg}
-`;
+            dl.textContent += `[${time}] [${type.toUpperCase()}] ${msg}\n`;
             dl.scrollTop = dl.scrollHeight;
         }
     }
