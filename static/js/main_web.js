@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  try {
     // === ELEMENTS ===
     const coverInput = document.getElementById('coverInput');
     const coverUploadBtn = document.getElementById('coverUploadBtn');
@@ -1500,4 +1501,8 @@ doc.save('/tmp/output.docx')
             dl.scrollTop = dl.scrollHeight;
         }
     }
+  } catch(initError) {
+    console.error('INIT_CRASH:', initError.message, initError.stack);
+    document.title = 'CRASH: ' + initError.message;
+  }
 });
