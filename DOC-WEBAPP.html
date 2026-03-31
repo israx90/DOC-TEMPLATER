@@ -13,6 +13,7 @@
     <!-- Icons (local) -->
     <link rel="stylesheet" href="static/vendor/fontawesome/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
 </head>
 
@@ -1056,15 +1057,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let paperSize = 'letter';
     let exportFormat = 'docx';
 
-    // === TESSERACT DETECTION (WebApp mode: not available) ===
+    // === TESSERACT DETECTION (WebApp: Tesseract.js) ===
     function checkTesseract() {
         const statusEl = document.getElementById('tesseractStatus');
         const dotEl = document.getElementById('tessDot');
         const labelEl = document.getElementById('tessLabel');
         if (!statusEl) return;
         statusEl.style.display = 'flex';
-        dotEl.className = 'tess-dot fail';
-        labelEl.textContent = 'No disponible en modo Web';
+        if (typeof Tesseract !== 'undefined') {
+            dotEl.className = 'tess-dot ok';
+            labelEl.textContent = 'Tesseract.js (navegador)';
+        } else {
+            dotEl.className = 'tess-dot fail';
+            labelEl.textContent = 'Tesseract.js no cargado';
+        }
     }
 
     // Show/hide indicator based on OCR toggle
@@ -1095,7 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         out += '> JSZip: ' + (typeof JSZip !== 'undefined' ? 'Loaded' : 'Missing') + '\n';
         out += '> Pyodide: ' + (typeof loadPyodide !== 'undefined' ? 'Available' : 'Missing') + '\n';
         out += '> Pyodide Init: ' + (window.pyodide ? 'Yes' : 'Not yet') + '\n';
-        out += '> OCR: Not available (requires local Tesseract)\n';
+        out += '> OCR: ' + (typeof Tesseract !== 'undefined' ? 'Tesseract.js (browser)' : 'Not available') + '\n';
         out += '===========================================\n';
         debugLog.textContent = out;
     }
@@ -2190,8 +2196,142 @@ globals()['app'] = app
 
 doc = Document('/tmp/input.docx')
 apply_styles(doc, config, config.get('_paper_size', 'letter'))
+
+# Extract images for OCR (if OCR enabled, images saved to /tmp/ocr_img_N.png)
+ocr_images_json = '[]'
+tables_cfg = config.get('tables', {})
+if tables_cfg.get('ocr_tables', False):
+    _ocr_list = ocr_extract_images(doc)
+    import json as _json
+    ocr_images_json = _json.dumps(_ocr_list)
+
 doc.save('/tmp/output.docx')
                     `);
+                    
+                    // === OCR Pipeline (Tesseract.js) ===
+                    const ocrEnabled = cfg.tables && cfg.tables.ocr_tables;
+                    if (ocrEnabled && typeof Tesseract !== 'undefined') {
+                        const ocrImagesJson = pyodide.globals.get('ocr_images_json');
+                        const ocrImages = JSON.parse(ocrImagesJson);
+                        
+                        if (ocrImages.length > 0) {
+                            log(`OCR: Detectadas ${ocrImages.length} imagen(es) — ejecutando reconocimiento...`, 'info');
+                            
+                            // Initialize Tesseract worker (reuse if already created)
+                            if (!window._tessWorker) {
+                                log('OCR: Cargando motor Tesseract.js (primera vez ~15MB)...', 'info');
+                                window._tessWorker = await Tesseract.createWorker('spa+eng', 1, {
+                                    logger: m => { if (m.status === 'recognizing text') log(`OCR: ${Math.round(m.progress * 100)}%`, 'info'); }
+                                });
+                            }
+                            const worker = window._tessWorker;
+                            
+                            // Process each image: OCR → table reconstruction → replace
+                            let ocrReplaced = 0;
+                            // Reload doc from saved output for replacements
+                            for (const imgInfo of ocrImages) {
+                                try {
+                                    const imgBytes = pyodide.FS.readFile(imgInfo.path);
+                                    const imgBlob = new Blob([imgBytes], { type: 'image/png' });
+                                    
+                                    // Run OCR with hOCR output (includes bounding boxes)
+                                    const { data } = await worker.recognize(imgBlob);
+                                    
+                                    if (!data.lines || data.lines.length === 0) {
+                                        log(`OCR: Imagen ${imgInfo.index} — sin texto detectado, saltando`, 'info');
+                                        continue;
+                                    }
+                                    
+                                    // === Table Grid Reconstruction from OCR words ===
+                                    // Group words into rows by Y coordinate clusters
+                                    const allWords = [];
+                                    for (const line of data.lines) {
+                                        for (const word of line.words) {
+                                            if (word.text.trim()) {
+                                                allWords.push({
+                                                    text: word.text.trim(),
+                                                    x: word.bbox.x0,
+                                                    y: word.bbox.y0,
+                                                    x1: word.bbox.x1,
+                                                    y1: word.bbox.y1,
+                                                    cy: (word.bbox.y0 + word.bbox.y1) / 2
+                                                });
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (allWords.length < 2) {
+                                        log(`OCR: Imagen ${imgInfo.index} — solo ${allWords.length} palabra(s), no es tabla`, 'info');
+                                        continue;
+                                    }
+                                    
+                                    // Cluster words into rows by Y center (tolerance = avg line height * 0.4)
+                                    allWords.sort((a, b) => a.cy - b.cy);
+                                    const lineHeight = allWords.reduce((s, w) => s + (w.y1 - w.y), 0) / allWords.length;
+                                    const yTolerance = lineHeight * 0.4;
+                                    
+                                    const rows = [];
+                                    let currentRow = [allWords[0]];
+                                    for (let wi = 1; wi < allWords.length; wi++) {
+                                        if (Math.abs(allWords[wi].cy - currentRow[0].cy) < yTolerance) {
+                                            currentRow.push(allWords[wi]);
+                                        } else {
+                                            rows.push(currentRow);
+                                            currentRow = [allWords[wi]];
+                                        }
+                                    }
+                                    rows.push(currentRow);
+                                    
+                                    if (rows.length < 2) {
+                                        log(`OCR: Imagen ${imgInfo.index} — solo ${rows.length} fila(s), no es tabla`, 'info');
+                                        continue;
+                                    }
+                                    
+                                    // Sort words in each row by X, determine column boundaries
+                                    rows.forEach(r => r.sort((a, b) => a.x - b.x));
+                                    
+                                    // Find columns: use the row with most words to define column boundaries
+                                    const maxCols = Math.max(...rows.map(r => r.length));
+                                    
+                                    // Build table data: for each row, group words into columns
+                                    // Simple approach: split each row evenly based on X position range
+                                    const allX = allWords.map(w => w.x);
+                                    const minX = Math.min(...allX);
+                                    const maxX = Math.max(...allWords.map(w => w.x1));
+                                    const colWidth = (maxX - minX) / maxCols;
+                                    
+                                    const tableData = rows.map(row => {
+                                        const cells = Array(maxCols).fill('');
+                                        for (const word of row) {
+                                            const colIdx = Math.min(Math.floor((word.x - minX) / colWidth), maxCols - 1);
+                                            cells[colIdx] = cells[colIdx] ? cells[colIdx] + ' ' + word.text : word.text;
+                                        }
+                                        return cells;
+                                    });
+                                    
+                                    log(`OCR: Imagen ${imgInfo.index} → tabla ${tableData.length}×${maxCols}`, 'success');
+                                    
+                                    // Call Python to replace image with table in the saved doc
+                                    const tableJson = JSON.stringify(tableData);
+                                    pyodide.runPython(`
+import json
+from docx import Document
+_doc = Document('/tmp/output.docx')
+_tdata = json.loads('${tableJson.replace(/'/g, "\\'")}')
+ocr_replace_image_with_table(_doc, ${imgInfo.para_index}, _tdata, ${imgInfo.width_emu})
+_doc.save('/tmp/output.docx')
+                                    `);
+                                    ocrReplaced++;
+                                    
+                                } catch (ocrErr) {
+                                    log(`OCR: Error en imagen ${imgInfo.index}: ${ocrErr.message}`, 'error');
+                                }
+                            }
+                            if (ocrReplaced > 0) {
+                                log(`OCR: ✅ ${ocrReplaced} imagen(es) reemplazada(s) con tablas`, 'success');
+                            }
+                        }
+                    }
                     
                     // Read output
                     let outBuf = pyodide.FS.readFile('/tmp/output.docx');

@@ -878,6 +878,109 @@ def _parse_emf_table(emf_bytes):
     print('EMF: Parsed {} rows x {} cols, {} merges from vector data'.format(len(rows_data), num_cols, len(merge_map)))
     return {'rows': rows_data, 'bold_map': bold_map, 'merge_map': merge_map, 'col_boundaries': col_boundaries}
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# OCR Web Functions (Pyodide/Tesseract.js bridge)
+# ═══════════════════════════════════════════════════════════════════════
+
+def ocr_extract_images(doc):
+    """Extract raster images (PNG/JPG) from inline drawings and save to /tmp/ocr_img_N.
+    Returns a list of dicts: [{index, para_index, rId, width_emu, path, content_type}]
+    """
+    results = []
+    para_map = []
+    for pi, para in enumerate(doc.paragraphs):
+        for run in para.runs:
+            blips = run._r.findall('.//' + qn('a:blip'))
+            if not blips:
+                continue
+            rId = blips[0].get(qn('r:embed'))
+            if not rId:
+                continue
+            image_part = doc.part.related_parts.get(rId)
+            if not image_part:
+                continue
+            ct = getattr(image_part, 'content_type', '')
+            # Skip vector images (EMF/WMF) — not supported by Tesseract.js
+            if 'emf' in ct.lower() or 'wmf' in ct.lower():
+                continue
+            img_bytes = image_part.blob
+            # Read image width from drawing XML
+            img_width_emu = 0
+            try:
+                drawings = run._r.findall('.//' + qn('wp:inline'))
+                if not drawings:
+                    drawings = run._r.findall('.//' + qn('wp:anchor'))
+                if drawings:
+                    extent = drawings[0].find(qn('wp:extent'))
+                    if extent is not None:
+                        img_width_emu = int(extent.get('cx', '0'))
+            except Exception:
+                pass
+            idx = len(results)
+            path = '/tmp/ocr_img_{}.png'.format(idx)
+            with open(path, 'wb') as f:
+                f.write(img_bytes)
+            results.append({
+                'index': idx,
+                'para_index': pi,
+                'rId': rId,
+                'width_emu': img_width_emu,
+                'path': path,
+                'content_type': ct
+            })
+    print('OCR: Extracted {} raster image(s) for table detection'.format(len(results)))
+    return results
+
+def ocr_replace_image_with_table(doc, para_index, rows_data, width_emu=0):
+    """Replace the paragraph at para_index (containing an image) with a native Word table.
+    rows_data: list of lists (strings), e.g. [['A','B'],['1','2']]
+    """
+    if not rows_data or not rows_data[0]:
+        return False
+    num_rows = len(rows_data)
+    num_cols = len(rows_data[0])
+    # Pad short rows
+    for r in rows_data:
+        while len(r) < num_cols:
+            r.append('')
+
+    tbl = doc.add_table(rows=num_rows, cols=num_cols)
+    tbl.autofit = True
+
+    # Set table width
+    tbl_pr = tbl._tbl.tblPr
+    tbl_width_el = tbl_pr.find(qn('w:tblW'))
+    if tbl_width_el is None:
+        tbl_width_el = OxmlElement('w:tblW')
+        tbl_pr.append(tbl_width_el)
+    if width_emu and width_emu > 0:
+        width_twips = int(width_emu / 635)
+        tbl_width_el.set(qn('w:w'), str(width_twips))
+        tbl_width_el.set(qn('w:type'), 'dxa')
+    else:
+        tbl_width_el.set(qn('w:w'), '0')
+        tbl_width_el.set(qn('w:type'), 'auto')
+
+    # Fill cell text
+    for i, row in enumerate(rows_data):
+        for j, cell_val in enumerate(row):
+            cell = tbl.cell(i, j)
+            cell.text = str(cell_val) if cell_val else ''
+
+    # Replace image paragraph with table
+    paras = list(doc.paragraphs)
+    if para_index < len(paras):
+        target_p = paras[para_index]._p
+        target_p.addnext(tbl._tbl)
+        parent = target_p.getparent()
+        if parent is not None:
+            parent.remove(target_p)
+        print('OCR: Replaced image at para {} with {}x{} table'.format(para_index, num_rows, num_cols))
+        return True
+    return False
+
+
 def apply_styles(doc, config, paper_size='letter'):
     paper_sizes = {'letter': (Inches(8.5), Inches(11)), 'a4': (Cm(21), Cm(29.7)), 'legal': (Inches(8.5), Inches(14))}
     pw, ph = paper_sizes.get(paper_size, paper_sizes['letter'])
@@ -903,9 +1006,9 @@ def apply_styles(doc, config, paper_size='letter'):
     table_cfg = config.get('tables', {})
     if table_cfg.get('ocr_tables', False):
         try:
-            pass
+            ocr_extract_images(doc)
         except Exception as e:
-            print('OCR table extraction failed: {}'.format(str(e)))
+            print('OCR image extraction failed: {}'.format(str(e)))
     for section in doc.sections:
         section.page_width = pw
         section.page_height = ph

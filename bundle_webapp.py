@@ -37,10 +37,11 @@ html = html.replace('''<button class="format-btn" data-format="both" title="Word
                             <span>Ambos</span>
                         </button>''', '')
 
-# Insert Pyodide and JSZip in head
+# Insert Pyodide, JSZip, and Tesseract.js in head
 pyodide_script = '<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>'
 jszip_script = '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>'
-html = html.replace('</head>', f'    {jszip_script}\n    {pyodide_script}\n</head>')
+tesseract_script = '<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>'
+html = html.replace('</head>', f'    {jszip_script}\n    {tesseract_script}\n    {pyodide_script}\n</head>')
 
 # Inline JS
 with open('static/js/main_web.js', 'r', encoding='utf-8') as f:
