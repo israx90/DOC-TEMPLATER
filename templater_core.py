@@ -1138,6 +1138,12 @@ def apply_styles(doc, config, paper_size='letter'):
             pass
     try:
         settings = doc.settings.element
+        
+        # Disable evenAndOddHeaders globally so pages 2, 4, 6... don't fall back to an empty/broken header
+        even_odd = settings.find(qn('w:evenAndOddHeaders'))
+        if even_odd is not None:
+            settings.remove(even_odd)
+            
         compat = settings.find(qn('w:compat'))
         if compat is None:
             compat = OxmlElement('w:compat')
