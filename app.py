@@ -1438,6 +1438,23 @@ def insert_page_numbers(doc, style='arabic', position='center', fmt='page_only',
             r3 = make_run(); _add_fld_char(r3, 'end'); para._p.append(r3)
             rPost = make_run(); tPost = OxmlElement('w:t'); tPost.text = ' -'; tPost.set(qn('xml:space'), 'preserve'); rPost.append(tPost); para._p.append(rPost)
 
+    # --- Clean paragraph-level sectPr page restarts ---
+    # Original documents may have section breaks (w:pPr/w:sectPr) with
+    # pgNumType start values that restart page numbering at each break.
+    # Remove these so numbering flows continuously through the document.
+    body = doc.element.body
+    for p_elem in body.findall(qn('w:p')):
+        pPr = p_elem.find(qn('w:pPr'))
+        if pPr is None:
+            continue
+        p_sectPr = pPr.find(qn('w:sectPr'))
+        if p_sectPr is None:
+            continue
+        pgNumType = p_sectPr.find(qn('w:pgNumType'))
+        if pgNumType is not None:
+            if qn('w:start') in pgNumType.attrib:
+                del pgNumType.attrib[qn('w:start')]
+
     num_sections = len(doc.sections)
     if num_sections == 0:
         return
@@ -1445,6 +1462,8 @@ def insert_page_numbers(doc, style='arabic', position='center', fmt='page_only',
     last_idx = num_sections - 1
     is_backpage = (doc.sections[last_idx].different_first_page_header_footer
                    if last_idx > 0 else False)
+
+    first_body_done = False  # Track whether we've set up the first body section
 
     for i, section in enumerate(doc.sections):
         # Skip back page (last section with different_first_page)
@@ -1470,6 +1489,7 @@ def insert_page_numbers(doc, style='arabic', position='center', fmt='page_only',
                 para = footer.add_paragraph()
                 para.alignment = para_align
                 add_page_field(para)
+                first_body_done = True
                 continue
 
         if i == 1 and toc_enabled:
@@ -1477,14 +1497,24 @@ def insert_page_numbers(doc, style='arabic', position='center', fmt='page_only',
             section.footer.is_linked_to_previous = False
             continue
 
-        # Body section: add page numbers and restart from 1
+        # Body section: add page numbers
         section.footer.is_linked_to_previous = False
         sectPr = section._sectPr
-        pgNumType = sectPr.find(qn('w:pgNumType'))
-        if pgNumType is None:
-            pgNumType = OxmlElement('w:pgNumType')
-            sectPr.append(pgNumType)
-        pgNumType.set(qn('w:start'), '1')
+
+        if not first_body_done:
+            # First body section: restart numbering from 1
+            pgNumType = sectPr.find(qn('w:pgNumType'))
+            if pgNumType is None:
+                pgNumType = OxmlElement('w:pgNumType')
+                sectPr.append(pgNumType)
+            pgNumType.set(qn('w:start'), '1')
+            first_body_done = True
+        else:
+            # Subsequent body sections: remove any pgNumType start so numbering continues
+            pgNumType = sectPr.find(qn('w:pgNumType'))
+            if pgNumType is not None:
+                if qn('w:start') in pgNumType.attrib:
+                    del pgNumType.attrib[qn('w:start')]
 
         footer = section.footer
         para = footer.add_paragraph()
@@ -2110,19 +2140,28 @@ def apply_styles(doc, config, paper_size='letter'):
     # all heading assignments fail silently (KeyError caught).
     # CRITICAL: We must also set w:outlineLvl so Word's TOC field (\o switch)
     # can find them — custom styles lack outline levels by default.
+    import copy as _copy
     from docx.enum.style import WD_STYLE_TYPE
     _heading_outline = {'Heading 1': '0', 'Heading 2': '1', 'Heading 3': '2'}
+    _heading_styles_available = {}
     for heading_name, outline_lvl in _heading_outline.items():
         try:
             h_style = doc.styles[heading_name]
+            _heading_styles_available[heading_name] = True
         except KeyError:
-            h_style = doc.styles.add_style(heading_name, WD_STYLE_TYPE.PARAGRAPH)
-            print('Created missing style: {}'.format(heading_name))
-        # Always ensure outlineLvl is set (even on existing styles that might lack it)
+            # Don't create new styles — the document may use latent/built-in
+            # heading styles not present in styles.xml. Creating a duplicate
+            # style corrupts numbering definitions (numId references scramble).
+            _heading_styles_available[heading_name] = False
+            continue
         pPr = h_style.element.find(qn('w:pPr'))
         if pPr is None:
             pPr = OxmlElement('w:pPr')
             h_style.element.append(pPr)
+        # Remove numPr from style definition to prevent style-level numbering
+        # from overriding paragraph-level numbering
+        for numPr in pPr.findall(qn('w:numPr')):
+            pPr.remove(numPr)
         outlineLvl = pPr.find(qn('w:outlineLvl'))
         if outlineLvl is None:
             outlineLvl = OxmlElement('w:outlineLvl')
@@ -2312,10 +2351,46 @@ def apply_styles(doc, config, paper_size='letter'):
             # Only assign Word Heading style for NUMBERED headings (they appear in TOC)
             if is_numbered:
                 style_name = {'h1': 'Heading 1', 'h2': 'Heading 2', 'h3': 'Heading 3'}.get(level, 'Heading 2')
-                try:
-                    paragraph.style = doc.styles[style_name]
-                except KeyError:
-                    pass
+                current_sname = paragraph.style.name if paragraph.style else ''
+                is_already_heading = (current_sname.startswith('Heading') or
+                                      current_sname.startswith('Título') or
+                                      current_sname.startswith('Titulo'))
+                if is_already_heading:
+                    # Paragraph already has a heading style — do NOT reassign
+                    # to avoid corrupting numbering definitions and style refs.
+                    # Set outlineLvl at paragraph level to ensure TOC inclusion.
+                    pPr = paragraph._p.get_or_add_pPr()
+                    outlineLvl = pPr.find(qn('w:outlineLvl'))
+                    if outlineLvl is None:
+                        outlineLvl = OxmlElement('w:outlineLvl')
+                        pPr.append(outlineLvl)
+                    outlineLvl.set(qn('w:val'), {'h1': '0', 'h2': '1', 'h3': '2'}.get(level, '1'))
+                elif _heading_styles_available.get(style_name, False):
+                    try:
+                        # Save existing numPr before style change
+                        pPr = paragraph._p.find(qn('w:pPr'))
+                        saved_numPr = None
+                        if pPr is not None:
+                            numPr_el = pPr.find(qn('w:numPr'))
+                            if numPr_el is not None:
+                                saved_numPr = _copy.deepcopy(numPr_el)
+                        paragraph.style = doc.styles[style_name]
+                        # Restore numPr if it existed
+                        if saved_numPr is not None:
+                            pPr = paragraph._p.get_or_add_pPr()
+                            for np in pPr.findall(qn('w:numPr')):
+                                pPr.remove(np)
+                            pPr.append(saved_numPr)
+                    except KeyError:
+                        pass
+                else:
+                    # Style not available — set outlineLvl directly on paragraph
+                    pPr = paragraph._p.get_or_add_pPr()
+                    outlineLvl = pPr.find(qn('w:outlineLvl'))
+                    if outlineLvl is None:
+                        outlineLvl = OxmlElement('w:outlineLvl')
+                        pPr.append(outlineLvl)
+                    outlineLvl.set(qn('w:val'), {'h1': '0', 'h2': '1', 'h3': '2'}.get(level, '1'))
             # Apply heading formatting (font/size/color/bold) regardless
             if headings_cfg.get(level):
                 _apply_heading_cfg(paragraph, headings_cfg[level])
