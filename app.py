@@ -1970,6 +1970,21 @@ def apply_styles(doc, config, paper_size='letter'):
     # Fix hyphenated/split words before any other processing
     _fix_hyphenated_words(doc)
 
+    # Convert internal nextPage section breaks to continuous to prevent blank pages.
+    body = doc.element.body
+    for p_elem in body.findall(qn('w:p')):
+        pPr = p_elem.find(qn('w:pPr'))
+        if pPr is None:
+            continue
+        p_sectPr = pPr.find(qn('w:sectPr'))
+        if p_sectPr is None:
+            continue
+        type_el = p_sectPr.find(qn('w:type'))
+        if type_el is None:
+            type_el = OxmlElement('w:type')
+            p_sectPr.append(type_el)
+        type_el.set(qn('w:val'), 'continuous')
+
     # --- Word Compatibility Mode (Word 2013+, better justify spacing) ---
     try:
         settings = doc.settings.element

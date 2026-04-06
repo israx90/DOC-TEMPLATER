@@ -1081,6 +1081,22 @@ def apply_styles(doc, config, paper_size='letter'):
     pw, ph = paper_sizes.get(paper_size, paper_sizes['letter'])
     # Fix hyphenated/split words before any other processing
     _fix_hyphenated_words(doc)
+    # Convert internal nextPage section breaks to continuous to prevent blank pages.
+    # PDF-to-DOCX conversions often insert nextPage breaks per-page that become
+    # blank pages when reflowed. This makes them continuous so text flows naturally.
+    body = doc.element.body
+    for p_elem in body.findall(qn('w:p')):
+        pPr = p_elem.find(qn('w:pPr'))
+        if pPr is None:
+            continue
+        p_sectPr = pPr.find(qn('w:sectPr'))
+        if p_sectPr is None:
+            continue
+        type_el = p_sectPr.find(qn('w:type'))
+        if type_el is None:
+            type_el = OxmlElement('w:type')
+            p_sectPr.append(type_el)
+        type_el.set(qn('w:val'), 'continuous')
     try:
         settings = doc.settings.element
         compat = settings.find(qn('w:compat'))
