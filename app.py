@@ -1972,6 +1972,7 @@ def apply_styles(doc, config, paper_size='letter'):
 
     # Convert internal nextPage section breaks to continuous to prevent blank pages.
     body = doc.element.body
+    # Paragraph-level sectPr
     for p_elem in body.findall(qn('w:p')):
         pPr = p_elem.find(qn('w:pPr'))
         if pPr is None:
@@ -1984,6 +1985,24 @@ def apply_styles(doc, config, paper_size='letter'):
             type_el = OxmlElement('w:type')
             p_sectPr.append(type_el)
         type_el.set(qn('w:val'), 'continuous')
+    # Body-level sectPr (last section)
+    body_sectPr = body.find(qn('w:sectPr'))
+    if body_sectPr is not None:
+        type_el = body_sectPr.find(qn('w:type'))
+        if type_el is not None and type_el.get(qn('w:val')) != 'continuous':
+            type_el.set(qn('w:val'), 'continuous')
+    # Clean stale header content from original sections (PDF-to-DOCX artifacts).
+    for section in doc.sections:
+        header = section.header
+        if header.is_linked_to_previous:
+            continue
+        has_text = any(p.text.strip() for p in header.paragraphs)
+        old_imgs = header._element.findall('.//' + qn('w:drawing')) + header._element.findall('.//' + qn('w:pict'))
+        if has_text or old_imgs:
+            for para in header.paragraphs:
+                p = para._p
+                for child in list(p):
+                    p.remove(child)
 
     # --- Word Compatibility Mode (Word 2013+, better justify spacing) ---
     try:
