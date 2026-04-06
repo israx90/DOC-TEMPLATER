@@ -1989,10 +1989,15 @@ def apply_styles(doc, config, paper_size='letter'):
     body_sectPr = body.find(qn('w:sectPr'))
     if body_sectPr is not None:
         type_el = body_sectPr.find(qn('w:type'))
-        if type_el is not None and type_el.get(qn('w:val')) != 'continuous':
+        if type_el is None:
+            type_el = OxmlElement('w:type')
+            body_sectPr.append(type_el)
+        if type_el.get(qn('w:val')) != 'continuous':
             type_el.set(qn('w:val'), 'continuous')
-    # Clean stale header content from original sections (PDF-to-DOCX artifacts).
+    # Clean stale header content and flags from original sections (PDF-to-DOCX artifacts).
     for section in doc.sections:
+        if section.different_first_page_header_footer:
+            section.different_first_page_header_footer = False
         header = section.header
         if header.is_linked_to_previous:
             continue
@@ -2003,6 +2008,14 @@ def apply_styles(doc, config, paper_size='letter'):
                 p = para._p
                 for child in list(p):
                     p.remove(child)
+        try:
+            fph = section.first_page_header
+            for para in fph.paragraphs:
+                p = para._p
+                for child in list(p):
+                    p.remove(child)
+        except Exception:
+            pass
 
     # --- Word Compatibility Mode (Word 2013+, better justify spacing) ---
     try:

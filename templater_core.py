@@ -1102,11 +1102,19 @@ def apply_styles(doc, config, paper_size='letter'):
     body_sectPr = body.find(qn('w:sectPr'))
     if body_sectPr is not None:
         type_el = body_sectPr.find(qn('w:type'))
-        if type_el is not None and type_el.get(qn('w:val')) != 'continuous':
+        if type_el is None:
+            type_el = OxmlElement('w:type')
+            body_sectPr.append(type_el)
+        if type_el.get(qn('w:val')) != 'continuous':
             type_el.set(qn('w:val'), 'continuous')
-    # Clean stale header content from original sections (PDF-to-DOCX artifacts).
-    # These appear as text headers when no custom header image is uploaded.
+    # Clean stale header content and flags from original sections (PDF-to-DOCX artifacts).
+    # These appear as text headers or cause blank headers on certain pages.
     for section in doc.sections:
+        # Clear different_first_page flag from original sections — it causes
+        # Word to show empty first-page headers. Our code sets this only for
+        # cover/backpage sections added later.
+        if section.different_first_page_header_footer:
+            section.different_first_page_header_footer = False
         header = section.header
         # Skip if header is linked (inherits from previous, no own content)
         if header.is_linked_to_previous:
@@ -1119,6 +1127,15 @@ def apply_styles(doc, config, paper_size='letter'):
                 p = para._p
                 for child in list(p):
                     p.remove(child)
+        # Also clean first-page header if it has stale content
+        try:
+            fph = section.first_page_header
+            for para in fph.paragraphs:
+                p = para._p
+                for child in list(p):
+                    p.remove(child)
+        except Exception:
+            pass
     try:
         settings = doc.settings.element
         compat = settings.find(qn('w:compat'))
