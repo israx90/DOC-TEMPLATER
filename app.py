@@ -1889,6 +1889,74 @@ def ocr_extract_tables(doc):
     print('OCR: replaced {} image(s) with native tables'.format(replaced))
 
 
+def _fix_hyphenated_words(doc):
+    """Rejoin words split by line-break hyphens (e.g. 'cons- trucción' → 'construcción').
+    Common in PDF-to-DOCX conversions where syllable breaks become literal text.
+    Handles multiple patterns across runs and within single runs."""
+    import re as _re_hyph
+    _LETTER = r'[a-záéíóúñüàèìòùâêîôûäëïöü]'
+    _SPLIT_RE = _re_hyph.compile(
+        r'(' + _LETTER + r'+)-\s+(' + _LETTER + r'+)', _re_hyph.IGNORECASE)
+    fixed = 0
+
+    for paragraph in doc.paragraphs:
+        # --- Pass 1: fix splits within single runs ---
+        for run in paragraph.runs:
+            new_text, count = _SPLIT_RE.subn(r'\1\2', run.text)
+            if count:
+                run.text = new_text
+                fixed += count
+
+        # --- Pass 2: fix splits across adjacent runs ---
+        runs = list(paragraph.runs)
+        if len(runs) < 2:
+            continue
+        i = 0
+        while i < len(runs) - 1:
+            r_text = runs[i].text
+            next_text = runs[i + 1].text if i + 1 < len(runs) else ''
+
+            # Pattern A: current run ends with "word- " → next run starts lowercase
+            m = _re_hyph.search(r'(' + _LETTER + r'+)-\s*$', r_text, _re_hyph.IGNORECASE)
+            if m and next_text and next_text[0].islower():
+                runs[i].text = r_text[:m.start()] + m.group(1) + next_text
+                paragraph._p.remove(runs[i + 1]._r)
+                runs.pop(i + 1)
+                fixed += 1
+                continue
+
+            # Pattern B: current run is just "- " → merge prev + next
+            if r_text.strip() == '-' and i > 0 and next_text:
+                prev_text = runs[i - 1].text
+                if (prev_text and prev_text[-1].isalpha() and
+                    next_text and next_text[0].islower()):
+                    runs[i - 1].text = prev_text + next_text
+                    paragraph._p.remove(runs[i]._r)
+                    paragraph._p.remove(runs[i + 1]._r)
+                    runs.pop(i + 1)
+                    runs.pop(i)
+                    fixed += 1
+                    continue
+
+            # Pattern C: next run starts with "- word" → merge into current
+            m2 = _re_hyph.match(r'^-\s*(' + _LETTER + r'+)', next_text, _re_hyph.IGNORECASE)
+            if m2 and r_text and r_text[-1].isalpha():
+                remainder = next_text[m2.end():]
+                runs[i].text = r_text + m2.group(1)
+                if remainder.strip():
+                    runs[i + 1].text = remainder
+                else:
+                    paragraph._p.remove(runs[i + 1]._r)
+                    runs.pop(i + 1)
+                fixed += 1
+                continue
+
+            i += 1
+
+    if fixed:
+        print('DEHYPHEN: Fixed {} split words'.format(fixed))
+
+
 def apply_styles(doc, config, paper_size='letter'):
 
     # --- Paper Size ---
@@ -1898,6 +1966,9 @@ def apply_styles(doc, config, paper_size='letter'):
         'legal': (Inches(8.5), Inches(14)),
     }
     pw, ph = paper_sizes.get(paper_size, paper_sizes['letter'])
+
+    # Fix hyphenated/split words before any other processing
+    _fix_hyphenated_words(doc)
 
     # --- Word Compatibility Mode (Word 2013+, better justify spacing) ---
     try:
