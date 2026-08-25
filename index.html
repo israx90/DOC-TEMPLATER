@@ -1880,7 +1880,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-load saved config from localStorage on page init
     try {
-        const saved = localStorage.getItem('doc_templater_config');
+        const saved = localStorage.getItem('doc_templater_config_v2');
         if (saved) {
             applyConfig(JSON.parse(saved));
             console.log('Config restored from localStorage');
@@ -2073,7 +2073,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cfg._paper_size = paperSize;
                 const forceEl = document.getElementById('forceStyles');
                 cfg._force_styles = forceEl ? forceEl.checked : true;
-                localStorage.setItem('doc_templater_config', JSON.stringify(cfg));
+                localStorage.setItem('doc_templater_config_v2', JSON.stringify(cfg));
             } catch (e) { console.warn('Config save error', e); }
             log('Configuración guardada ✓', 'success');
         });
