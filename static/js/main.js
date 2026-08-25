@@ -850,6 +850,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved) {
             applyConfig(JSON.parse(saved));
             console.log('Config restored from localStorage');
+        } else if (window.DEFAULT_APP_CONFIG && Object.keys(window.DEFAULT_APP_CONFIG).length > 0) {
+            applyConfig(window.DEFAULT_APP_CONFIG);
+            // Set thumbnails for default images extracted by backend
+            ['header', 'footer', 'cover', 'backpage'].forEach(slot => {
+                const thumb = document.getElementById(slot + 'Thumb');
+                if(thumb) {
+                    // Cache buster to ensure image reloads
+                    thumb.src = '/uploads/custom_' + slot + '.png?t=' + new Date().getTime();
+                    thumb.style.display = 'block';
+                }
+                const uploadBtn = document.getElementById(slot + 'UploadBtn');
+                if(uploadBtn) {
+                    uploadBtn.style.display = 'none';
+                }
+            });
+            console.log('Default config applied from default.edd');
         }
     } catch (e) { console.warn('Config load error', e); }
 

@@ -147,6 +147,9 @@
     <!-- ADVANCED CONFIG MODAL -->
     {% include 'components/config_modal.html' %}
 
+    <script>
+        window.DEFAULT_APP_CONFIG = {{ default_config | safe }};
+    </script>
     <script src="/static/js/main.js"></script>
 </body>
 

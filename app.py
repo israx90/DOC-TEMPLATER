@@ -88,6 +88,27 @@ for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER]:
         shutil.rmtree(folder)
     os.makedirs(folder, exist_ok=True)
 
+# Auto-load default.edd if it exists
+default_edd = os.path.join(BUNDLE_DIR, 'static', 'default.edd')
+default_config_json = "{}"
+if os.path.exists(default_edd):
+    import zipfile
+    try:
+        with zipfile.ZipFile(default_edd, 'r') as zf:
+            if 'config.json' in zf.namelist():
+                default_config_json = zf.read('config.json').decode('utf-8')
+            slot_map = {'cover': 'custom_cover', 'header': 'custom_header', 'footer': 'custom_footer', 'backpage': 'custom_backpage'}
+            for name in zf.namelist():
+                if name.startswith('images/'):
+                    basename = os.path.basename(name)
+                    slot, ext = os.path.splitext(basename)
+                    if slot in slot_map:
+                        dest_path = os.path.join(UPLOAD_FOLDER, slot_map[slot] + ext)
+                        with open(dest_path, 'wb') as f:
+                            f.write(zf.read(name))
+    except Exception as e:
+        print(f"Failed to load default.edd: {e}")
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 
@@ -95,7 +116,7 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 
 @app.route('/')
 def index():
-    return render_template('tool_docs.html')
+    return render_template('tool_docs.html', default_config=default_config_json)
 
 @app.route('/docs')
 def docs():
