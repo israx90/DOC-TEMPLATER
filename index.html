@@ -1884,6 +1884,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved) {
             applyConfig(JSON.parse(saved));
             console.log('Config restored from localStorage');
+        } else {
+            // Fetch default EDD if no saved config
+            fetch('static/default.edd').then(res => {
+                if (res.ok) return res.blob();
+                throw new Error('default.edd not found');
+            }).then(blob => {
+                const dt = new DataTransfer();
+                dt.items.add(new File([blob], 'default.edd', { type: 'application/zip' }));
+                const templateInput = document.getElementById('templateInput');
+                if(templateInput) {
+                    templateInput.files = dt.files;
+                    templateInput.dispatchEvent(new Event('change'));
+                    console.log('Default config loaded from static/default.edd');
+                }
+            }).catch(e => console.log('No default config loaded', e));
         }
     } catch (e) { console.warn('Config load error', e); }
 
